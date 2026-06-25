@@ -1,0 +1,60 @@
+# =============================================================================
+# Vitali Health AI — fully self-hosted AI stack
+# -----------------------------------------------------------------------------
+#   app          the Vitali web app + /api/llm  (http://localhost:3000)
+#   ollama       local, private LLM runtime     (http://localhost:11434)
+#   anythingllm  local RAG workspace            (http://localhost:3001)
+#
+# Quick start (local & private, no API key needed):
+#   docker compose up --build
+#   docker compose exec ollama ollama pull llama3.1
+#   open http://localhost:3000
+#
+# Prefer hosted Claude instead? Set ANTHROPIC_API_KEY in your .env and
+# LLM_PROVIDER=anthropic. Want RAG over your own docs? Set LLM_PROVIDER=anythingllm
+# and add ANYTHINGLLM_API_KEY after creating a workspace + key in the UI.
+# =============================================================================
+
+services:
+  app:
+    build: .
+    ports:
+      - '3000:3000'
+    environment:
+      # Default to the local, private Ollama service below.
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      # Anthropic (optional — used when LLM_PROVIDER=anthropic/auto and key is set)
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-opus-4-8}
+      # Ollama (service DNS name within the compose network)
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1}
+      # AnythingLLM
+      ANYTHINGLLM_BASE_URL: http://anythingllm:3001
+      ANYTHINGLLM_API_KEY: ${ANYTHINGLLM_API_KEY:-}
+      ANYTHINGLLM_WORKSPACE: ${ANYTHINGLLM_WORKSPACE:-vitali}
+    depends_on:
+      - ollama
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - '11434:11434'
+    volumes:
+      - ollama:/root/.ollama
+    restart: unless-stopped
+
+  anythingllm:
+    image: mintplexlabs/anythingllm:latest
+    ports:
+      - '3001:3001'
+    environment:
+      STORAGE_DIR: /app/server/storage
+    volumes:
+      - anythingllm:/app/server/storage
+    restart: unless-stopped
+
+volumes:
+  ollama:
+  anythingllm:
