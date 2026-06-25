@@ -1,0 +1,131 @@
+/* =============================================================================
+   Vitali Health AI — Design Tokens
+   The single source of truth for the brand. Everything else references these.
+   Aesthetic: sleek, premium medical-tech. Calm, trustworthy, dark-first.
+   ============================================================================= */
+
+:root {
+  /* ---- Base canvas: deep near-black with subtle dark-blue depth ---- */
+  --bg: #05070d;
+  --bg-deep: #03040a;
+  --bg-tint: #070b16; /* faint blue ambient used in radial glows */
+
+  /* ---- Brand gradient stops (use SPARINGLY — logo + signature moments only) --
+     electric purple -> teal -> green, with a single warm orange tip accent. */
+  --brand-purple: #6b3fe0;
+  --brand-blue: #4a6ee0;
+  --brand-teal: #2bb8c4;
+  --brand-green: #3dd68c;
+  --brand-orange: #f5a623;
+  --brand-gradient: linear-gradient(
+    135deg,
+    var(--brand-purple) 0%,
+    var(--brand-teal) 48%,
+    var(--brand-green) 82%,
+    var(--brand-orange) 100%
+  );
+  /* Softer wash for rare large-surface signature moments. */
+  --brand-wash: linear-gradient(
+    135deg,
+    rgba(107, 63, 224, 0.16),
+    rgba(43, 184, 196, 0.12) 55%,
+    rgba(61, 214, 140, 0.1)
+  );
+
+  /* ---- Primary interactive: glowing cyan ---- */
+  --cyan: #3fd9e8;
+  --cyan-bright: #6fe7f3;
+  --cyan-ink: #03222a; /* readable text color when sitting on cyan */
+  --cyan-soft: rgba(63, 217, 232, 0.13);
+  --cyan-line: rgba(63, 217, 232, 0.34);
+  --cyan-glow: 0 0 #0000; /* flattened — no glows */
+
+  /* ---- Surfaces: slightly lifted from the canvas ---- */
+  --surface-1: #0e1320;
+  --surface-2: #141b2d;
+  --surface-3: #1b2438;
+  --surface-press: #11182a;
+
+  /* Faint 1px borders + soft glow instead of hard shadows. */
+  --hairline: rgba(255, 255, 255, 0.07);
+  --hairline-strong: rgba(255, 255, 255, 0.13);
+  --hairline-top: rgba(255, 255, 255, 0.055); /* inner top-edge catch-light */
+  --soft-shadow: 0 18px 40px -24px rgba(0, 0, 0, 0.8);
+
+  /* Flat design — structure comes from crisp borders, not shadows/sheens.
+     These tokens are intentionally no-ops so any rule referencing them stays flat. */
+  --highlight-top: 0 0 #0000;
+  --shadow-card: 0 0 #0000;
+  --shadow-card-hover: 0 0 #0000;
+  --shadow-pop: 0 16px 40px -24px rgba(0, 0, 0, 0.7); /* only true popovers */
+  --surface-sheen: linear-gradient(rgba(255, 255, 255, 0), rgba(255, 255, 255, 0));
+
+  /* ---- Text ---- */
+  --text: #e8edf4; /* primary, near-white */
+  --text-dim: #8a97ad; /* secondary, muted blue-gray */
+  --text-faint: #5b6680; /* tertiary / placeholders */
+
+  /* ---- Semantic ---- */
+  --danger: #ff6b6b; /* allergies / critical flags */
+  --warn: #f5a623;
+  --ok: #3dd68c;
+  --info: var(--cyan);
+  --danger-soft: rgba(255, 107, 107, 0.12);
+  --danger-line: rgba(255, 107, 107, 0.34);
+  --warn-soft: rgba(245, 166, 35, 0.13);
+  --warn-line: rgba(245, 166, 35, 0.32);
+  --ok-soft: rgba(61, 214, 140, 0.13);
+  --ok-line: rgba(61, 214, 140, 0.32);
+
+  /* ---- Radii: soft, rounded ---- */
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 10px;
+  --r-xl: 14px;
+  --r-pill: 999px;
+
+  /* ---- Spacing scale ---- */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-7: 28px;
+  --s-8: 32px;
+  --s-10: 40px;
+  --s-12: 48px;
+
+  /* ---- Typography ----
+     Inter for body/UI; Space Grotesk for display, the wordmark, and data —
+     a precise, instrument-like grotesk that gives the app a designed signature. */
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui,
+    sans-serif;
+  --font-display: 'Space Grotesk', 'Inter', -apple-system, system-ui, sans-serif;
+  --fs-display: 34px;
+  --fs-h1: 26px;
+  --fs-h2: 20px;
+  --fs-h3: 16px;
+  --fs-body: 15px;
+  --fs-sm: 13px;
+  --fs-xs: 11.5px;
+  --fs-label: 10.5px; /* tracked uppercase section labels */
+  --tracking-tight: -0.02em;
+  --tracking-display: -0.035em; /* tight, confident headlines */
+  --tracking-wide: 0.08em;
+  --tracking-label: 0.15em;
+
+  /* ---- Motion (subtle + purposeful) ---- */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 160ms;
+  --dur: 280ms;
+  --dur-slow: 440ms;
+
+  /* ---- Layout ---- */
+  --app-max: 460px; /* phone-frame max width when viewed on desktop */
+  --nav-h: 66px;
+  --header-h: 56px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}

@@ -1,0 +1,445 @@
+/* =============================================================================
+   Vitali Health AI — Global base + lightweight primitive classes
+   Imported once (main.tsx). Screens/components compose these + their own modules.
+   ============================================================================= */
+
+@import './tokens.css';
+
+/* ---- Reset ---- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+* {
+  margin: 0;
+}
+html,
+body,
+#root {
+  height: 100%;
+}
+html {
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  font-family: var(--font);
+  font-size: var(--fs-body);
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  /* Prevent the rubber-band overscroll showing a non-brand color on mobile. */
+  overscroll-behavior-y: none;
+}
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+button {
+  cursor: pointer;
+  background: none;
+  border: none;
+  -webkit-tap-highlight-color: transparent;
+}
+a {
+  color: var(--cyan);
+  text-decoration: none;
+}
+ul {
+  list-style: none;
+  padding: 0;
+}
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: var(--tracking-display);
+  line-height: 1.12;
+}
+:focus {
+  outline: none;
+}
+/* Visible keyboard focus for accessibility (does not show on mouse/touch). */
+:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ---- Outer backdrop (shows around the phone frame on wide screens) ---- */
+.app-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--bg-deep);
+}
+
+/* ---- Custom scrollbar (kept whisper-thin) ---- */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--hairline-strong);
+  border-radius: var(--r-pill);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* Brand-tinted text selection — a small thing pros never skip. */
+::selection {
+  background: rgba(63, 217, 232, 0.26);
+  color: #fff;
+}
+
+/* ---- Text helpers ---- */
+.t-dim {
+  color: var(--text-dim);
+}
+.t-faint {
+  color: var(--text-faint);
+}
+.t-cyan {
+  color: var(--cyan);
+}
+.t-mono-num {
+  font-variant-numeric: tabular-nums;
+}
+.eyebrow {
+  font-size: var(--fs-label);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--fs-label);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-weight: 600;
+  margin-bottom: var(--s-3);
+}
+/* A short brand tick precedes each section label — a small, deliberate signature. */
+.section-title::before {
+  content: '';
+  width: 14px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--cyan), var(--brand-teal));
+  flex: none;
+}
+
+/* Tabular display numerals for data (times, vitals, metrics). */
+.num {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* Gradient text — reserved for the brand wordmark / signature numbers. */
+.brand-text {
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ---- Layout helpers ---- */
+.stack {
+  display: flex;
+  flex-direction: column;
+}
+.row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+.between {
+  justify-content: space-between;
+}
+.gap-1 {
+  gap: var(--s-1);
+}
+.gap-2 {
+  gap: var(--s-2);
+}
+.gap-3 {
+  gap: var(--s-3);
+}
+.gap-4 {
+  gap: var(--s-4);
+}
+.grow {
+  flex: 1;
+  min-width: 0;
+}
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Card: flat surface, crisp 1px border. Structure, not elevation. ---- */
+.card {
+  position: relative;
+  background: var(--surface-1);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--r-lg);
+}
+.card-2 {
+  background: var(--surface-2);
+}
+.card-pad {
+  padding: var(--s-4);
+}
+
+/* ---- Buttons ---- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  height: 50px;
+  padding: 0 var(--s-5);
+  border-radius: var(--r-md);
+  font-weight: 600;
+  font-size: var(--fs-h3);
+  letter-spacing: -0.01em;
+  transition:
+    transform var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease),
+    opacity var(--dur-fast) var(--ease);
+  user-select: none;
+}
+.btn:active {
+  transform: scale(0.98);
+}
+.btn:disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+.btn-block {
+  width: 100%;
+}
+
+/* Primary — solid cyan, flat. The one high-emphasis action per screen. */
+.btn-primary {
+  background: var(--cyan);
+  color: var(--cyan-ink);
+}
+.btn-primary:hover {
+  background: var(--cyan-bright);
+}
+
+/* Secondary — flat surface + crisp border. */
+.btn-secondary {
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--hairline-strong);
+}
+.btn-secondary:hover {
+  background: var(--surface-3);
+  border-color: var(--text-faint);
+}
+
+/* Ghost — text-only. */
+.btn-ghost {
+  background: transparent;
+  color: var(--text-dim);
+  height: 44px;
+}
+.btn-ghost:hover {
+  color: var(--text);
+}
+
+/* ---- Chips / badges ---- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  height: 26px;
+  padding: 0 var(--s-2);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  background: var(--surface-2);
+  color: var(--text-dim);
+  border: 1px solid var(--hairline-strong);
+  white-space: nowrap;
+}
+.chip-cyan {
+  background: var(--cyan-soft);
+  color: var(--cyan-bright);
+  border-color: var(--cyan-line);
+}
+.chip-danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: var(--danger-line);
+}
+.chip-warn {
+  background: var(--warn-soft);
+  color: var(--warn);
+  border-color: var(--warn-line);
+}
+.chip-ok {
+  background: var(--ok-soft);
+  color: var(--ok);
+  border-color: var(--ok-line);
+}
+
+/* Status dot used inside chips / next to labels. */
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--text-dim);
+}
+.dot-ok {
+  background: var(--ok);
+  box-shadow: 0 0 0 3px var(--ok-soft);
+}
+.dot-warn {
+  background: var(--warn);
+  box-shadow: 0 0 0 3px var(--warn-soft);
+}
+.dot-danger {
+  background: var(--danger);
+  box-shadow: 0 0 0 3px var(--danger-soft);
+}
+
+/* ---- Form fields ---- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.label {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-dim);
+}
+.input,
+.textarea {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-md);
+  color: var(--text);
+  padding: 14px var(--s-4);
+  font-size: var(--fs-body);
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease);
+}
+.input::placeholder,
+.textarea::placeholder {
+  color: var(--text-faint);
+}
+.input:focus,
+.textarea:focus {
+  border-color: var(--cyan-line);
+  box-shadow: 0 0 0 3px var(--cyan-soft);
+}
+.textarea {
+  resize: none;
+  min-height: 92px;
+  line-height: 1.5;
+}
+
+/* Thin divider. */
+.divider {
+  height: 1px;
+  background: var(--hairline);
+  border: none;
+  width: 100%;
+}
+
+/* ---- Motion keyframes ---- */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+/* Soft pulse used when a Circle updates in real time. */
+@keyframes live-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(63, 217, 232, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(63, 217, 232, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(63, 217, 232, 0);
+  }
+}
+@keyframes ring-expand {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-rise {
+  animation: rise-in var(--dur) var(--ease) both;
+}
+.animate-fade {
+  animation: fade-in var(--dur) var(--ease) both;
+}
+.live-pulse {
+  animation: live-pulse 2.4s var(--ease) infinite;
+}
+
+/* ---- Respect reduced-motion: disable all non-essential animation ---- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
