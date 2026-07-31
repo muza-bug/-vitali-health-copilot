@@ -15,10 +15,12 @@ export interface Nurse {
   initials: string;
   role: string;
   unit: string;
-  /** Hue (0–360) used to tint the gradient avatar. */
+  /** Hue (0–360) used to tint the fallback gradient avatar (no photo set). */
   avatarHue: number;
+  /** Profile photo as a data URL. When set, it replaces the gradient avatar. */
+  photoUrl?: string;
   online: boolean;
-  /** 4-digit ID code teammates use to find each other. */
+  /** 4-digit ID code teammates use to find each other and add to Circles. */
   code: string;
   /** Short free-text status the team sees, e.g. "Covering rooms 410–418". */
   statusNote?: string;
@@ -166,6 +168,45 @@ export interface VoiceMessage {
   transcript: string | null;
   audioUrl: string | null;
   status: VoiceStatus;
+}
+
+/* ----------------------------------------------------------- Training cases */
+
+/**
+ * A closed patient episode, archived for teaching. Created automatically when a
+ * Circle is discharged: the full record — timeline, tasks, vitals, recordings —
+ * moves here so other nurses can learn from it, with an AI debrief on top.
+ */
+export interface TrainingRecording {
+  at: string;
+  senderId: ID;
+  durationSec: number;
+  transcript: string | null;
+}
+
+export interface TrainingDebrief {
+  text: string;
+  source: 'ai' | 'mock';
+  generatedAt: string;
+}
+
+export interface TrainingCase {
+  id: ID;
+  sourceCircleId: ID;
+  /** Case label without the patient's name, e.g. "68F — Sepsis watch". */
+  caseLabel: string;
+  reason: string;
+  unit: string;
+  outcome: 'discharged';
+  admittedAt: string;
+  closedAt: string;
+  flags: PatientFlag[];
+  finalVitals?: Vitals;
+  timeline: TimelineEntry[];
+  tasks: Task[];
+  recordings: TrainingRecording[];
+  /** AI teaching debrief — what happened, what could have gone better. */
+  debrief?: TrainingDebrief;
 }
 
 /* ------------------------------------------------------ De-identified metrics */

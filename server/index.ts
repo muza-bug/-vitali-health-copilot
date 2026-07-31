@@ -13,6 +13,7 @@ import { readFile } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { extname, join, normalize } from 'node:path';
 import { runLlm } from '../api/_llm';
+import { runRelay } from '../api/_relay';
 
 const DIST = join(process.cwd(), 'dist');
 const PORT = Number(process.env.PORT) || 3000;
@@ -74,6 +75,25 @@ const server = createServer(async (req, res) => {
       /* keep defaults */
     }
     const result = await runLlm(body.kind ?? '', body.payload);
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.end(JSON.stringify(result));
+    return;
+  }
+
+  if (req.url === '/api/relay') {
+    if (req.method !== 'POST') {
+      res.writeHead(405, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, message: 'POST only' }));
+      return;
+    }
+    const raw = await readBody(req);
+    let body: { url?: unknown; payload?: unknown } = {};
+    try {
+      body = raw ? JSON.parse(raw) : {};
+    } catch {
+      /* keep defaults */
+    }
+    const result = await runRelay(body.url, body.payload);
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify(result));
     return;

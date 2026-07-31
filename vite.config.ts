@@ -54,6 +54,22 @@ function llmDevApi(): Plugin {
         res.setHeader('content-type', 'application/json');
         res.end(JSON.stringify(result));
       });
+
+      // Connector relay (Slack) — mirrors /api/relay in production.
+      server.middlewares.use('/api/relay', async (req: IncomingMessage, res: ServerResponse) => {
+        if (req.method !== 'POST') {
+          res.statusCode = 405;
+          res.setHeader('content-type', 'application/json');
+          res.end(JSON.stringify({ ok: false, message: 'POST only' }));
+          return;
+        }
+        const { runRelay } = await server.ssrLoadModule('/api/_relay.ts');
+        const body = (await readJson(req)) as { url?: unknown; payload?: unknown };
+        const result = await runRelay(body.url, body.payload);
+        res.statusCode = 200;
+        res.setHeader('content-type', 'application/json');
+        res.end(JSON.stringify(result));
+      });
     },
   };
 }
