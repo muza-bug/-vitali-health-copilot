@@ -1,13 +1,29 @@
-/* Screen 7 — Insights. A light teaser of the long-term value: anonymized,
-   aggregated process metrics. The copy makes the privacy separation explicit —
-   patient identity and process data never mix. Pipeline is stubbed (analytics.ts). */
+/* Screen 7 — Insights. The Data agent's real-time unit report up top (organizes
+   what every nurse is logging into one prioritized briefing, shareable to
+   Slack), then anonymized aggregated process metrics. The copy makes the
+   privacy separation explicit — patient identity and process data never mix. */
 
-import { ShieldCheck, Sparkles, TrendingDown, TrendingUp } from 'lucide-react';
+import {
+  AlertTriangle,
+  Bot,
+  Eye,
+  RefreshCw,
+  ShieldCheck,
+  Slack,
+  Sparkles,
+  TrendingDown,
+  TrendingUp,
+  Users,
+} from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Sparkline } from '../components/Sparkline';
 import { duration } from '../lib/format';
 import { taskCategoryMeta } from '../lib/meta';
+import { generateUnitReport, reportToSlackText } from '../services/agents';
 import { api } from '../services/api';
+import { postSlack, slackConfigured } from '../services/connectors';
+import { getAiHealth, subscribeAiHealth, type UnitReport } from '../services/llm';
+import { useApp } from '../store/AppContext';
 import type { AggregateInsight, ProcessMetric, TaskCategory } from '../types/models';
 
 function InsightCard({ insight }: { insight: AggregateInsight }) {
@@ -27,6 +43,109 @@ function InsightCard({ insight }: { insight: AggregateInsight }) {
       </div>
       <p className="insight-caption t-dim">{insight.caption}</p>
     </div>
+  );
+}
+
+/** The Data agent's live unit report card. */
+function UnitReportCard() {
+  const { shift, circles, tasks, timeline, nurses } = useApp();
+  const [report, setReport] = useState<UnitReport | null>(null);
+  const [running, setRunning] = useState(false);
+  const [shareState, setShareState] = useState<'idle' | 'sending' | 'ok' | 'fail'>('idle');
+  const [credits, setCredits] = useState(getAiHealth().creditsExhausted);
+
+  useEffect(() => subscribeAiHealth((h) => setCredits(h.creditsExhausted)), []);
+
+  const unit = shift?.unit ?? 'This unit';
+
+  const run = async () => {
+    if (running) return;
+    setRunning(true);
+    setShareState('idle');
+    const r = await generateUnitReport(unit, circles, tasks, timeline, nurses);
+    setReport(r);
+    setRunning(false);
+  };
+
+  // First report generates itself when the screen opens.
+  useEffect(() => {
+    void run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const share = async () => {
+    if (!report) return;
+    setShareState('sending');
+    const ok = await postSlack(reportToSlackText(report, unit));
+    setShareState(ok ? 'ok' : 'fail');
+  };
+
+  const Section = ({ icon, title, lines }: { icon: React.ReactNode; title: string; lines: string[] }) =>
+    lines.length === 0 ? null : (
+      <div className="report-section">
+        <span className="report-section-title">{icon} {title}</span>
+        <ul className="report-list">
+          {lines.map((l) => (
+            <li key={l}>{l}</li>
+          ))}
+        </ul>
+      </div>
+    );
+
+  return (
+    <section className="card card-pad report-card">
+      <div className="row between">
+        <div className="row gap-2">
+          <Bot size={16} className="t-cyan" />
+          <span className="card-h">Data agent · live unit report</span>
+        </div>
+        <button className="link-btn" onClick={() => void run()} disabled={running} aria-label="Refresh report">
+          <RefreshCw size={14} className={running ? 'spin' : ''} /> {running ? 'Reporting…' : 'Refresh'}
+        </button>
+      </div>
+
+      {credits && (
+        <div className="credits-banner">
+          <AlertTriangle size={15} />
+          <span>
+            Out of Claude credits — reports fall back to on-device math. Top up in the Claude
+            Console dashboard.
+          </span>
+        </div>
+      )}
+
+      {!report ? (
+        <p className="t-faint empty-line">Reading the unit…</p>
+      ) : (
+        <>
+          <p className="report-headline">{report.headline}</p>
+          <Section icon={<AlertTriangle size={13} />} title="Needs attention" lines={report.attention} />
+          <Section icon={<Eye size={13} />} title="Watch" lines={report.watch} />
+          <Section icon={<Users size={13} />} title="Workload" lines={report.workload} />
+          <div className="row between report-foot">
+            <span className="t-faint">
+              {report.source === 'ai' ? 'Vitali Data agent' : 'On-device summary'} ·{' '}
+              {new Date(report.generatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+            <button
+              className="link-btn"
+              onClick={() => void share()}
+              disabled={!slackConfigured() || shareState === 'sending'}
+              title={slackConfigured() ? 'Post this report to Slack' : 'Connect Slack in Profile first'}
+            >
+              <Slack size={14} />{' '}
+              {shareState === 'sending'
+                ? 'Sending…'
+                : shareState === 'ok'
+                  ? 'Sent ✓'
+                  : shareState === 'fail'
+                    ? 'Failed — retry'
+                    : 'Send to Slack'}
+            </button>
+          </div>
+        </>
+      )}
+    </section>
   );
 }
 
@@ -69,6 +188,9 @@ export function InsightsScreen() {
         <h1 className="home-greeting">Insights</h1>
         <p className="t-dim home-date">Anonymized process metrics for 4 West</p>
       </header>
+
+      {/* The Data agent's live briefing */}
+      <UnitReportCard />
 
       {/* Privacy is the product */}
       <section className="card card-pad privacy-banner">

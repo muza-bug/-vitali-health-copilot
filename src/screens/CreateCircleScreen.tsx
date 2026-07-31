@@ -3,7 +3,7 @@
    status, and invite the team. Setup time is captured as a de-identified metric.
    Designed to take well under a minute. */
 
-import { Building2, Check, Loader2, Search } from 'lucide-react';
+import { Building2, Check, Hash, Loader2, Search } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Avatar } from '../components/Avatar';
@@ -41,6 +41,10 @@ export function CreateCircleScreen() {
   const [pullErr, setPullErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Add-by-ID: type a teammate's 4-digit nurse ID to select them instantly.
+  const [idQuery, setIdQuery] = useState('');
+  const [idMsg, setIdMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
   const others = nurses.filter((n) => n.id !== currentNurse?.id);
   const canSave = name.trim() && room.trim() && reason.trim() && !saving;
 
@@ -73,6 +77,28 @@ export function CreateCircleScreen() {
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+
+  const addById = () => {
+    const code = idQuery.trim();
+    if (!code) return;
+    const match = nurses.find((n) => n.code === code);
+    if (!match) {
+      setIdMsg({ ok: false, text: `No nurse with ID ${code} on this unit.` });
+      return;
+    }
+    if (match.id === currentNurse?.id) {
+      setIdMsg({ ok: false, text: 'That’s your own ID — you’re already in every Circle you create.' });
+      return;
+    }
+    if (members.has(match.id)) {
+      setIdMsg({ ok: true, text: `${match.name} (ID ${match.code}) is already selected.` });
+      setIdQuery('');
+      return;
+    }
+    setMembers((s) => new Set(s).add(match.id));
+    setIdMsg({ ok: true, text: `Added ${match.name} · ${match.role} (ID ${match.code}).` });
+    setIdQuery('');
+  };
 
   const save = async () => {
     if (!canSave) return;
@@ -172,6 +198,33 @@ export function CreateCircleScreen() {
         {/* Invite team */}
         <section className="card card-pad">
           <div className="section-title">Invite team · {members.size} selected</div>
+
+          {/* Fastest path: teammates share their 4-digit nurse ID */}
+          <div className="input-icon id-add">
+            <Hash size={16} className="t-dim" />
+            <input
+              className="input has-icon"
+              placeholder="Add by nurse ID, e.g. 3307…"
+              value={idQuery}
+              maxLength={4}
+              inputMode="numeric"
+              onChange={(e) => {
+                setIdQuery(e.target.value.replace(/\D/g, ''));
+                setIdMsg(null);
+              }}
+              onKeyDown={(e) => e.key === 'Enter' && addById()}
+              aria-label="Add teammate by nurse ID"
+            />
+            <button className="inline-btn" onClick={addById} disabled={idQuery.trim().length < 4}>
+              Add
+            </button>
+          </div>
+          {idMsg && (
+            <p className={idMsg.ok ? 'pulled-ok' : 't-warn-line'}>
+              {idMsg.ok && <Check size={13} />} {idMsg.text}
+            </p>
+          )}
+
           <div className="member-grid">
             {others.map((n) => {
               const on = members.has(n.id);
@@ -180,7 +233,7 @@ export function CreateCircleScreen() {
                   <Avatar nurse={n} size={30} showPresence />
                   <span className="stack member-chip-text grow">
                     <span className="member-name truncate">{n.name}</span>
-                    <span className="t-faint member-role truncate">{n.role}</span>
+                    <span className="t-faint member-role truncate">{n.role} · ID {n.code}</span>
                   </span>
                   <span className={`member-tick ${on ? 'is-on' : ''}`}>{on && <Check size={13} strokeWidth={3} />}</span>
                 </button>

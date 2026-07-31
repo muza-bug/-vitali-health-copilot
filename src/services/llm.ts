@@ -372,7 +372,7 @@ function mockDebrief(tc: TrainingCase): string {
   const open = tc.tasks.length - done;
   return [
     'WHAT HAPPENED:',
-    `${tc.caseLabel} — ${tc.reason}. The team logged ${tc.timeline.length} updates and ${tc.recordings.length} voice notes before discharge.`,
+    `${tc.caseLabel}. The team logged ${tc.timeline.length} updates and ${tc.recordings.length} voice notes before discharge.`,
     'WHAT WENT WELL:',
     `${done} of ${tc.tasks.length} tasks were completed, and the Circle kept a running record the next shift could follow.`,
     'WHAT COULD BE IMPROVED:',

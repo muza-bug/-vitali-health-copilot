@@ -1,12 +1,19 @@
 /* The AI care assistant — a proactive agent that reads a Circle's live context
-   (status, vitals, recent notes, open tasks) and proposes prioritized next steps
-   the team can accept with one tap. Powered by the pluggable LLM backend
+   (status, vitals, recent notes, open tasks), proposes prioritized next steps
+   the team can accept with one tap, and answers questions grounded in this
+   patient's record ("Ask Vitali"). Powered by the pluggable LLM backend
    (Claude / Ollama / AnythingLLM); falls back to on-device heuristics so it's
    always useful. Nothing it proposes is applied automatically — a nurse decides. */
 
-import { RefreshCw, Sparkles } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Send, Sparkles } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { aiSuggest, type AiSource } from '../services/llm';
+import {
+  aiAsk,
+  aiSuggest,
+  getAiHealth,
+  subscribeAiHealth,
+  type AiSource,
+} from '../services/llm';
 import type { Circle } from '../types/models';
 
 interface AssistantPanelProps {
@@ -22,6 +29,14 @@ export function AssistantPanel({ circle, recentNotes, openTaskLabels, onAddTask 
   const [loading, setLoading] = useState(false);
   const [added, setAdded] = useState<Set<string>>(new Set());
   const reqId = useRef(0);
+
+  // Ask Vitali — one grounded Q&A at a time.
+  const [question, setQuestion] = useState('');
+  const [answer, setAnswer] = useState<{ text: string; source: AiSource } | null>(null);
+  const [asking, setAsking] = useState(false);
+  const [credits, setCredits] = useState(getAiHealth().creditsExhausted);
+
+  useEffect(() => subscribeAiHealth((h) => setCredits(h.creditsExhausted)), []);
 
   const run = useCallback(async () => {
     const id = ++reqId.current;
@@ -45,6 +60,15 @@ export function AssistantPanel({ circle, recentNotes, openTaskLabels, onAddTask 
     setAdded((s) => new Set(s).add(label));
   };
 
+  const ask = async () => {
+    const q = question.trim();
+    if (!q || asking) return;
+    setAsking(true);
+    const res = await aiAsk(circle, recentNotes, openTaskLabels, q);
+    setAnswer(res);
+    setAsking(false);
+  };
+
   const sourceLabel =
     source === 'ai' ? 'Suggested by Vitali AI' : 'On-device suggestion · connect a model for more';
 
@@ -59,6 +83,16 @@ export function AssistantPanel({ circle, recentNotes, openTaskLabels, onAddTask 
           <RefreshCw size={14} className={loading ? 'spin' : ''} /> {loading ? 'Thinking…' : 'Refresh'}
         </button>
       </div>
+
+      {credits && (
+        <div className="credits-banner">
+          <AlertTriangle size={15} />
+          <span>
+            Out of Claude credits — running on on-device fallbacks. Top up in the Claude Console
+            dashboard to restore full AI.
+          </span>
+        </div>
+      )}
 
       {loading && items.length === 0 ? (
         <p className="t-faint empty-line">Reading the Circle…</p>
@@ -81,6 +115,39 @@ export function AssistantPanel({ circle, recentNotes, openTaskLabels, onAddTask 
           })}
         </div>
       )}
+
+      {/* Ask Vitali — answers grounded in this patient's record only */}
+      <div className="ask-box">
+        <div className="input-icon">
+          <Sparkles size={15} className="t-dim" />
+          <input
+            className="input has-icon"
+            placeholder="Ask about this patient…"
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && void ask()}
+            aria-label="Ask the assistant about this patient"
+          />
+          <button
+            className="inline-btn"
+            onClick={() => void ask()}
+            disabled={asking || !question.trim()}
+            aria-label="Send question"
+          >
+            {asking ? <RefreshCw size={15} className="spin" /> : <Send size={15} />}
+          </button>
+        </div>
+        {answer && (
+          <div className="ask-answer">
+            <p>{answer.text}</p>
+            <span className="t-faint">
+              {answer.source === 'ai'
+                ? 'Vitali AI · grounded in this Circle only — verify against protocol'
+                : 'On-device fallback · connect a model for real answers'}
+            </span>
+          </div>
+        )}
+      </div>
 
       <span className="assistant-foot t-faint">{sourceLabel}</span>
     </section>

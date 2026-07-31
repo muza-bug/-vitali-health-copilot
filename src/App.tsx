@@ -15,6 +15,8 @@ import { InsightsScreen } from './screens/InsightsScreen';
 import { LoginScreen } from './screens/LoginScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { TeamDirectoryScreen } from './screens/TeamDirectoryScreen';
+import { TrainingCaseScreen } from './screens/TrainingCaseScreen';
+import { TrainingScreen } from './screens/TrainingScreen';
 import { WalkieTalkieScreen } from './screens/WalkieTalkieScreen';
 import { AppProvider, useApp } from './store/AppContext';
 import { useAuth } from './store/AuthContext';
@@ -73,10 +75,12 @@ export default function App() {
             <Route element={<TabsLayout />}>
               <Route path="/shift" element={<HomeScreen />} />
               <Route path="/insights" element={<InsightsScreen />} />
+              <Route path="/learn" element={<TrainingScreen />} />
+              <Route path="/profile" element={<ProfileScreen />} />
             </Route>
             <Route path="/create" element={<CreateCircleScreen />} />
-            <Route path="/profile" element={<ProfileScreen />} />
             <Route path="/team" element={<TeamDirectoryScreen />} />
+            <Route path="/learn/:id" element={<TrainingCaseScreen />} />
             <Route path="/circle/:id" element={<CircleDetailScreen />} />
             <Route path="/circle/:id/talk" element={<WalkieTalkieScreen />} />
             <Route path="/circle/:id/handoff" element={<HandoffScreen />} />

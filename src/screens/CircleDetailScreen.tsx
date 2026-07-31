@@ -2,7 +2,7 @@
    (no digging), then team, walkie-talkie, tasks, and a timestamped activity feed.
    Adding an update or marking a task done is always one tap away. */
 
-import { ArrowLeftRight, ChevronRight, Plus, Radio } from 'lucide-react';
+import { ArrowLeftRight, Check, ChevronRight, Hash, Plus, Radio, UserPlus } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Avatar } from '../components/Avatar';
@@ -37,6 +37,11 @@ export function CircleDetailScreen() {
   const [taskLabel, setTaskLabel] = useState('');
   const [taskCat, setTaskCat] = useState<TaskCategory>('assessment');
 
+  // Add a teammate by their 4-digit nurse ID, right from the Team card.
+  const [showAddById, setShowAddById] = useState(false);
+  const [idQuery, setIdQuery] = useState('');
+  const [idMsg, setIdMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
   if (!circle || !app.currentNurse) {
     return (
       <div className="screen">
@@ -61,6 +66,24 @@ export function CircleDetailScreen() {
     await app.addTask(circle.id, label, taskCat);
     setTaskLabel('');
     setShowAddTask(false);
+  };
+
+  const addById = async () => {
+    const code = idQuery.trim();
+    if (code.length < 4) return;
+    const match = app.nurses.find((n) => n.code === code);
+    if (!match) {
+      setIdMsg({ ok: false, text: `No nurse with ID ${code} on this unit.` });
+      return;
+    }
+    if (circle.memberIds.includes(match.id)) {
+      setIdMsg({ ok: true, text: `${match.name} is already on this Circle.` });
+      setIdQuery('');
+      return;
+    }
+    await app.addMember(circle.id, match.id);
+    setIdMsg({ ok: true, text: `Added ${match.name} (ID ${match.code}) to the Circle.` });
+    setIdQuery('');
   };
 
   return (
@@ -117,12 +140,55 @@ export function CircleDetailScreen() {
             <div className="section-title" style={{ margin: 0 }}>
               Team · {members.length}
             </div>
-            {!isMember && (
-              <button className="link-btn" onClick={() => void app.joinCircle(circle.id)}>
-                Join Circle
+            <div className="row gap-2">
+              {!isMember && (
+                <button className="link-btn" onClick={() => void app.joinCircle(circle.id)}>
+                  Join Circle
+                </button>
+              )}
+              <button
+                className="link-btn"
+                onClick={() => setShowAddById((v) => !v)}
+                aria-label="Add teammate by nurse ID"
+              >
+                <UserPlus size={14} /> Add by ID
               </button>
-            )}
+            </div>
           </div>
+
+          {showAddById && (
+            <div className="add-by-id">
+              <div className="input-icon">
+                <Hash size={16} className="t-dim" />
+                <input
+                  className="input has-icon"
+                  placeholder="Nurse ID, e.g. 5192…"
+                  value={idQuery}
+                  maxLength={4}
+                  inputMode="numeric"
+                  autoFocus
+                  onChange={(e) => {
+                    setIdQuery(e.target.value.replace(/\D/g, ''));
+                    setIdMsg(null);
+                  }}
+                  onKeyDown={(e) => e.key === 'Enter' && void addById()}
+                />
+                <button
+                  className="inline-btn"
+                  onClick={() => void addById()}
+                  disabled={idQuery.trim().length < 4}
+                >
+                  Add
+                </button>
+              </div>
+              {idMsg && (
+                <p className={idMsg.ok ? 'pulled-ok' : 't-warn-line'}>
+                  {idMsg.ok && <Check size={13} />} {idMsg.text}
+                </p>
+              )}
+            </div>
+          )}
+
           <div className="team-row">
             {members.map((n) => (
               <div key={n.id} className="team-member">
