@@ -16,6 +16,7 @@ import {
   type ReactNode,
 } from 'react';
 import { api } from '../services/api';
+import { alertSlack } from '../services/connectors';
 import { driftVitals, notableChange } from '../services/liveData';
 import { publish, subscribeAll, type RealtimeEvent } from '../services/realtime';
 import type {
@@ -28,6 +29,8 @@ import type {
   Task,
   TaskCategory,
   TimelineEntry,
+  TrainingCase,
+  TrainingDebrief,
   Vitals,
   VoiceMessage,
 } from '../types/models';
@@ -41,6 +44,8 @@ interface AppState {
   timeline: TimelineEntry[];
   tasks: Task[];
   voice: VoiceMessage[];
+  /** Discharged cases archived for the Learn tab. */
+  training: TrainingCase[];
   /** Live bedside-monitor stream on/off (see services/liveData.ts). */
   live: boolean;
 }
@@ -52,6 +57,7 @@ interface AppActions {
   // selectors
   getNurse: (id: ID) => Nurse | undefined;
   getCircle: (id: ID) => Circle | undefined;
+  getTrainingCase: (id: ID) => TrainingCase | undefined;
   timelineFor: (circleId: ID) => TimelineEntry[];
   tasksFor: (circleId: ID) => Task[];
   voiceFor: (circleId: ID) => VoiceMessage[];
@@ -63,6 +69,9 @@ interface AppActions {
   addTask: (circleId: ID, label: string, category: TaskCategory) => Promise<void>;
   completeTask: (taskId: ID) => Promise<void>;
   joinCircle: (circleId: ID) => Promise<void>;
+  addMember: (circleId: ID, nurseId: ID) => Promise<void>;
+  saveDebrief: (caseId: ID, debrief: TrainingDebrief) => Promise<void>;
+  setPhoto: (photoUrl: string | null) => Promise<void>;
   sendVoiceMessage: (
     circleId: ID,
     durationSec: number,
@@ -104,6 +113,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     timeline: [],
     tasks: [],
     voice: [],
+    training: [],
     live: true,
   });
 
@@ -256,6 +266,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           };
           setState((s) => ({ ...s, timeline: [...s.timeline, entry] }));
           publish({ kind: 'timeline', circleId: c.id, entry, lastUpdateAt: entry.createdAt });
+          // Critical patients also ping the team's Slack channel (if wired up).
+          if (c.status === 'critical') alertSlack(c.patient.room, note);
           break; // one per cycle keeps the feed calm
         }
       }
@@ -273,6 +285,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const getCircle = useCallback(
     (id: ID) => state.circles.find((c) => c.id === id),
     [state.circles],
+  );
+  const getTrainingCase = useCallback(
+    (id: ID) => state.training.find((t) => t.id === id),
+    [state.training],
   );
   const timelineFor = useCallback(
     (circleId: ID) =>
@@ -346,6 +362,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
         lastUpdateAt: res.lastUpdateAt,
         status: res.status,
       });
+
+      // Discharge closes the episode: the whole record (timeline, tasks,
+      // recordings) is archived as a training case for the Learn tab.
+      if (status === 'discharge') {
+        const snap = stateRef.current;
+        const circle = snap.circles.find((c) => c.id === circleId);
+        if (!circle) return;
+        const tc = await api.archiveCase({
+          circle: { ...circle, status },
+          timeline: [...snap.timeline, res.entry].filter((t) => t.circleId === circleId),
+          tasks: snap.tasks.filter((t) => t.circleId === circleId),
+          voice: snap.voice.filter((v) => v.circleId === circleId),
+          unit: snap.shift?.unit ?? circle.patient.room,
+        });
+        setState((s) => ({
+          ...s,
+          training: s.training.some((t) => t.id === tc.id) ? s.training : [tc, ...s.training],
+        }));
+      }
     },
     [me],
   );
@@ -401,6 +436,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [me],
   );
 
+  // Add a teammate to a Circle by their nurse ID code.
+  const addMember = useCallback(async (circleId: ID, nurseId: ID) => {
+    const { memberIds, entry } = await api.addMember(circleId, nurseId);
+    setState((s) => ({ ...s, timeline: [...s.timeline, entry] }));
+    bumpCircle(circleId, entry.createdAt, { memberIds });
+    publish({ kind: 'timeline', circleId, entry, lastUpdateAt: entry.createdAt, memberIds });
+  }, []);
+
+  // Attach the Training coach's debrief to an archived case.
+  const saveDebrief = useCallback(async (caseId: ID, debrief: TrainingDebrief) => {
+    await api.saveDebrief(caseId, debrief);
+    setState((s) => ({
+      ...s,
+      training: s.training.map((t) => (t.id === caseId ? { ...t, debrief } : t)),
+    }));
+  }, []);
+
   const sendVoiceMessage = useCallback(
     async (
       circleId: ID,
@@ -453,6 +505,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
   const setStatusNote = useCallback((note: string) => updateMe({ statusNote: note }), [updateMe]);
   const setAvatarHue = useCallback((hue: number) => updateMe({ avatarHue: hue }), [updateMe]);
+  // Profile photo — persisted per device via the API seam.
+  const setPhoto = useCallback(
+    async (photoUrl: string | null) => {
+      await api.setPhoto(me, photoUrl);
+      updateMe({ photoUrl: photoUrl ?? undefined });
+    },
+    [me, updateMe],
+  );
   const setLive = useCallback((on: boolean) => setState((s) => ({ ...s, live: on })), []);
 
   const value = useMemo(
@@ -460,6 +520,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       ...state,
       getNurse,
       getCircle,
+      getTrainingCase,
       timelineFor,
       tasksFor,
       voiceFor,
@@ -470,16 +531,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addTask,
       completeTask,
       joinCircle,
+      addMember,
+      saveDebrief,
       sendVoiceMessage,
       setPresence,
       setStatusNote,
       setAvatarHue,
+      setPhoto,
       setLive,
     }),
     [
       state,
       getNurse,
       getCircle,
+      getTrainingCase,
       timelineFor,
       tasksFor,
       voiceFor,
@@ -490,10 +555,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addTask,
       completeTask,
       joinCircle,
+      addMember,
+      saveDebrief,
       sendVoiceMessage,
       setPresence,
       setStatusNote,
       setAvatarHue,
+      setPhoto,
       setLive,
     ],
   );

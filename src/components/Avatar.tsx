@@ -1,4 +1,5 @@
-/* Gradient initials avatar, tinted per-nurse by hue. Optional presence dot. */
+/* Profile-photo avatar. Falls back to gradient initials when no photo is set.
+   Optional presence dot. */
 
 import type { Nurse } from '../types/models';
 
@@ -9,7 +10,7 @@ interface AvatarProps {
 }
 
 export function Avatar({ nurse, size = 38, showPresence = false }: AvatarProps) {
-  const { avatarHue: h } = nurse;
+  const { avatarHue: h, photoUrl } = nurse;
   return (
     <span
       className="avatar"
@@ -17,11 +18,17 @@ export function Avatar({ nurse, size = 38, showPresence = false }: AvatarProps) 
         width: size,
         height: size,
         fontSize: size * 0.36,
-        background: `linear-gradient(140deg, hsl(${h} 68% 56%), hsl(${h + 38} 64% 44%))`,
+        background: photoUrl
+          ? 'var(--surface-3)'
+          : `linear-gradient(140deg, hsl(${h} 68% 56%), hsl(${h + 38} 64% 44%))`,
       }}
       title={nurse.name}
     >
-      {nurse.initials}
+      {photoUrl ? (
+        <img className="avatar-photo" src={photoUrl} alt={nurse.name} />
+      ) : (
+        nurse.initials
+      )}
       {showPresence && (
         <span
           className={`avatar-presence ${nurse.online ? 'is-online' : ''}`}

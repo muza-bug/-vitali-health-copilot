@@ -1,48 +1,125 @@
 /* =============================================================================
-   Vitali Health AI — AI agents / automation extension point (INTERFACE ONLY)
+   Vitali Health AI — the AI agent roster
    -----------------------------------------------------------------------------
-   A clean place for future autonomous agents to act on a Circle — e.g. auto-
-   drafting an update from a voice clip, watching metrics for outliers, or
-   nudging the team about an overdue task. No implementation now; just the seam.
+   Three agents, all riding the pluggable LLM backend (services/llm.ts):
 
-   >>> TODO: register real agents here and dispatch Circle events to them. <<<
+   • CARE ASSISTANT — proactive next steps + grounded Q&A on one Circle
+     (AssistantPanel). Nothing it proposes is applied without a nurse's tap.
+   • DATA AGENT — organizes what every nurse is logging into a real-time unit
+     report (Insights screen), shareable to Slack via services/connectors.ts.
+   • TRAINING COACH — debriefs discharged cases in the Learn tab: what
+     happened, what went well, what could have been done better.
+
+   Responsible-AI stance (enforced in the server system prompt, api/_llm.ts):
+   grounded only in supplied data, no diagnoses or dosing, always defers to
+   protocol and clinical judgment, and every output is labeled 'ai' or 'mock'.
    ============================================================================= */
 
-import type { Circle, TimelineEntry } from '../types/models';
+import {
+  aiDebrief,
+  aiUnitReport,
+  type UnitReport,
+  type UnitSnapshot,
+} from './llm';
+import type {
+  Circle,
+  Nurse,
+  Task,
+  TimelineEntry,
+  TrainingCase,
+  TrainingDebrief,
+} from '../types/models';
 
-/** What an agent may propose back to a Circle (never auto-applied silently). */
-export interface AgentSuggestion {
-  circleId: string;
-  kind: 'draft-update' | 'flag' | 'next-step';
-  text: string;
+/* ----------------------------------------------------------------- data agent */
+
+/**
+ * Build the de-identified snapshot the Data agent reports on. Rooms and
+ * clinical facts go in; patient names never do.
+ */
+export function buildUnitSnapshot(
+  unit: string,
+  circles: Circle[],
+  tasks: Task[],
+  timeline: TimelineEntry[],
+  nurses: Nurse[],
+): UnitSnapshot {
+  const active = circles.filter((c) => c.status !== 'discharge');
+  const openTasks = tasks.filter((t) => t.status === 'open');
+  return {
+    unit,
+    nursesOnline: nurses.filter((n) => n.online).length,
+    nursesTotal: nurses.length,
+    openTaskCount: openTasks.length,
+    circles: active.map((c) => {
+      const v = c.patient.vitals;
+      return {
+        label: `Room ${c.patient.room} — ${c.reason}`,
+        status: c.status,
+        vitals: v
+          ? { hr: v.hr, bp: v.bp, spo2: v.spo2, temp: v.temp, resp: v.resp, pain: v.pain }
+          : undefined,
+        openTasks: openTasks.filter((t) => t.circleId === c.id).map((t) => t.label),
+        recentUpdates: timeline
+          .filter((t) => t.circleId === c.id && (t.kind === 'note' || t.kind === 'vitals'))
+          .slice(-3)
+          .map((t) => t.text),
+        teamSize: c.memberIds.length,
+      };
+    }),
+  };
 }
 
-/** Lifecycle hooks an agent can implement. All optional. */
-export interface VitaliAgent {
-  id: string;
-  label: string;
-  /** Called when a Circle changes; may return suggestions for the team to accept. */
-  onCircleEvent?(circle: Circle, entry: TimelineEntry): Promise<AgentSuggestion[]>;
+/** Run the Data agent: live unit snapshot in, prioritized report out. */
+export async function generateUnitReport(
+  unit: string,
+  circles: Circle[],
+  tasks: Task[],
+  timeline: TimelineEntry[],
+  nurses: Nurse[],
+): Promise<UnitReport> {
+  return aiUnitReport(buildUnitSnapshot(unit, circles, tasks, timeline, nurses));
 }
 
-const registry: VitaliAgent[] = [];
+/** Render a unit report as Slack-friendly text. */
+export function reportToSlackText(report: UnitReport, unit: string): string {
+  const lines = [
+    `*Vitali unit report — ${unit}*`,
+    report.headline,
+    ...(report.attention.length ? ['*Needs attention:*', ...report.attention.map((a) => `• ${a}`)] : []),
+    ...(report.watch.length ? ['*Watch:*', ...report.watch.map((w) => `• ${w}`)] : []),
+    ...(report.workload.length ? ['*Workload:*', ...report.workload.map((w) => `• ${w}`)] : []),
+  ];
+  return lines.join('\n');
+}
 
-/** Register an automation agent. TODO: real agents get added here. */
-export function registerAgent(agent: VitaliAgent): void {
-  registry.push(agent);
+/* ------------------------------------------------------------- training coach */
+
+/** Run the Training coach over a closed case and return its debrief. */
+export async function generateDebrief(tc: TrainingCase): Promise<TrainingDebrief> {
+  const { text, source } = await aiDebrief(tc);
+  return { text, source, generatedAt: new Date().toISOString() };
 }
 
 /**
- * Fan a Circle event out to all registered agents and collect their suggestions.
- * The UI decides whether to surface them — nothing is applied automatically.
- * TODO: connect to the agent runtime / queue.
+ * Split a debrief's plain-text sections for display. Unknown shapes fall back
+ * to a single unlabeled section so nothing the model wrote is dropped.
  */
-export async function dispatchCircleEvent(
-  circle: Circle,
-  entry: TimelineEntry,
-): Promise<AgentSuggestion[]> {
-  const all = await Promise.all(
-    registry.map((a) => a.onCircleEvent?.(circle, entry) ?? Promise.resolve([])),
-  );
-  return all.flat();
+export function parseDebriefSections(text: string): { title: string; body: string }[] {
+  const titles = ['WHAT HAPPENED', 'WHAT WENT WELL', 'WHAT COULD BE IMPROVED', 'TEACHING POINTS'];
+  const pattern = new RegExp(`^(${titles.join('|')}):?\\s*$`, 'i');
+  const sections: { title: string; body: string }[] = [];
+  let current: { title: string; body: string } | null = null;
+  for (const line of text.split('\n')) {
+    const m = line.trim().match(pattern);
+    if (m) {
+      if (current) sections.push(current);
+      current = { title: m[1].toUpperCase(), body: '' };
+    } else if (current) {
+      current.body += (current.body ? '\n' : '') + line;
+    } else if (line.trim()) {
+      current = { title: 'DEBRIEF', body: line };
+    }
+  }
+  if (current) sections.push(current);
+  return sections.map((s) => ({ ...s, body: s.body.trim() })).filter((s) => s.body);
 }

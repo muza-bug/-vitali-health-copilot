@@ -1,7 +1,7 @@
 /* Native-feeling bottom tab bar. The center action keeps "create a Circle"
    reachable in one tap from anywhere in the app. */
 
-import { BarChart3, CalendarClock, Plus } from 'lucide-react';
+import { BarChart3, CalendarClock, GraduationCap, Plus, UserRound } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 
 export function BottomNav() {
@@ -14,6 +14,14 @@ export function BottomNav() {
       >
         <CalendarClock size={22} />
         <span>Shift</span>
+      </NavLink>
+
+      <NavLink
+        to="/learn"
+        className={({ isActive }) => `nav-item ${isActive ? 'is-active' : ''}`}
+      >
+        <GraduationCap size={22} />
+        <span>Learn</span>
       </NavLink>
 
       <button
@@ -30,6 +38,14 @@ export function BottomNav() {
       >
         <BarChart3 size={22} />
         <span>Insights</span>
+      </NavLink>
+
+      <NavLink
+        to="/profile"
+        className={({ isActive }) => `nav-item ${isActive ? 'is-active' : ''}`}
+      >
+        <UserRound size={22} />
+        <span>Profile</span>
       </NavLink>
     </nav>
   );
