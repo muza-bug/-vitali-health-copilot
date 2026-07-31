@@ -44,7 +44,7 @@ import { captureMetric } from './analytics';
 /* Training cases and profile photos survive reloads via localStorage until a
    real backend takes over. Everything else stays in-memory (demo data). */
 
-const TRAINING_KEY = 'vitali.training.cases';
+const TRAINING_KEY = 'vitali.training.cases.v2';
 const photoKey = (nurseId: ID) => `vitali.profile.photo.${nurseId}`;
 
 function loadTraining(): TrainingCase[] {
@@ -96,6 +96,57 @@ const now = () => new Date().toISOString();
 let idSeq = 1000;
 const uid = (prefix: string) => `${prefix}${idSeq++}`;
 
+/** Build a TrainingCase from a Circle + its records (shared by archive paths). */
+function buildCase(input: {
+  circle: Circle;
+  timeline: TimelineEntry[];
+  tasks: Task[];
+  voice: VoiceMessage[];
+  unit: string;
+}): TrainingCase {
+  const p = input.circle.patient;
+  return {
+    id: uid('tc'),
+    sourceCircleId: input.circle.id,
+    caseLabel:
+      p.age > 0 ? `${p.age}${p.sex} — ${input.circle.reason}` : `Room ${p.room} — ${input.circle.reason}`,
+    reason: input.circle.reason,
+    unit: input.unit,
+    outcome: 'discharged',
+    admittedAt: p.admittedAt,
+    closedAt: input.circle.lastUpdateAt || now(),
+    flags: clone(p.flags),
+    finalVitals: p.vitals ? clone(p.vitals) : undefined,
+    timeline: clone([...input.timeline].sort((a, b) => a.createdAt.localeCompare(b.createdAt))),
+    tasks: clone(input.tasks),
+    recordings: input.voice.map((v) => ({
+      at: v.createdAt,
+      senderId: v.senderId,
+      durationSec: v.durationSec,
+      transcript: v.transcript,
+    })),
+  };
+}
+
+/** Seeded discharge Circles become Learn-tab cases on first load (idempotent). */
+function archiveSeededDischarges(): void {
+  for (const circle of store.circles) {
+    if (circle.status !== 'discharge') continue;
+    if (store.training.some((t) => t.sourceCircleId === circle.id)) continue;
+    store.training.push(
+      buildCase({
+        circle,
+        timeline: store.timeline.filter((t) => t.circleId === circle.id),
+        tasks: store.tasks.filter((t) => t.circleId === circle.id),
+        voice: store.voice.filter((v) => v.circleId === circle.id),
+        unit: store.shift.unit,
+      }),
+    );
+  }
+  store.training.sort((a, b) => b.closedAt.localeCompare(a.closedAt));
+  persistTraining(store.training);
+}
+
 /** Sort order for the home list: critical first, then most-recently active. */
 const STATUS_RANK: Record<CircleStatus, number> = {
   critical: 0,
@@ -130,6 +181,7 @@ export const api = {
     training: TrainingCase[];
   }> {
     await delay();
+    archiveSeededDischarges();
     // Re-attach locally persisted profile photos before handing state out.
     for (const n of store.nurses) {
       const photo = loadPhoto(n.id);
@@ -472,30 +524,7 @@ export const api = {
     const existing = store.training.find((t) => t.sourceCircleId === input.circle.id);
     if (existing) return clone(existing);
 
-    const p = input.circle.patient;
-    const tc: TrainingCase = {
-      id: uid('tc'),
-      sourceCircleId: input.circle.id,
-      caseLabel:
-        p.age > 0 ? `${p.age}${p.sex} — ${input.circle.reason}` : `Room ${p.room} — ${input.circle.reason}`,
-      reason: input.circle.reason,
-      unit: input.unit,
-      outcome: 'discharged',
-      admittedAt: p.admittedAt,
-      closedAt: now(),
-      flags: clone(p.flags),
-      finalVitals: p.vitals ? clone(p.vitals) : undefined,
-      timeline: clone(
-        [...input.timeline].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
-      ),
-      tasks: clone(input.tasks),
-      recordings: input.voice.map((v) => ({
-        at: v.createdAt,
-        senderId: v.senderId,
-        durationSec: v.durationSec,
-        transcript: v.transcript,
-      })),
-    };
+    const tc = buildCase({ ...input, circle: { ...input.circle, lastUpdateAt: now() } });
     store.training.unshift(tc);
     persistTraining(store.training);
     return clone(tc);

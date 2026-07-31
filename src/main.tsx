@@ -6,6 +6,7 @@ import './styles/global.css';
 import './styles/components.css';
 import './styles/screens.css';
 import './styles/interactions.css';
+import './styles/demo.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

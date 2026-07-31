@@ -31,14 +31,25 @@ export const CURRENT_NURSE_ID = 'n1';
 export const nurses: Nurse[] = [
   {
     id: 'n1',
-    name: 'Maya Chen',
-    initials: 'MC',
+    name: 'Maria Santos',
+    initials: 'MS',
     role: 'Registered Nurse',
     unit: '4 West — Cardiac',
     avatarHue: 188,
     online: true,
     code: '4821',
     statusNote: 'On the floor — day shift',
+  },
+  {
+    id: 'n7',
+    name: 'James Okafor',
+    initials: 'JO',
+    role: 'Registered Nurse',
+    unit: '4 West — Cardiac',
+    avatarHue: 266,
+    online: true,
+    code: '6114',
+    statusNote: 'Precepting today — happy to help',
   },
   {
     id: 'n2',
@@ -191,7 +202,7 @@ export const circles: Circle[] = [
     memberIds: ['n1', 'n3'],
     patient: {
       id: 'p2',
-      name: 'James Okafor',
+      name: 'Samuel Adeyemi',
       room: '418',
       mrn: '•••3155',
       age: 54,
@@ -210,11 +221,80 @@ export const circles: Circle[] = [
       },
     },
   },
+  /* --- The two completed episodes that power the Training story. -------------
+     Room 214 is the "room to improve" case; Room 118 is the exemplar. The SAME
+     Circles appear in the live app, the Learn tab, the full Training review
+     (src/data/demoContent.ts), and the Insights rollups — one continuous loop. */
+  {
+    id: 'c214',
+    reason: 'Caffeine toxicity — IV fluids',
+    notes:
+      'Energy-drink overuse; tachycardic and anxious on arrival. Plan: IV fluids, telemetry, reassess q30. Resolved and discharged on day shift.',
+    status: 'discharge',
+    createdBy: 'n1',
+    createdAt: hr(30),
+    lastUpdateAt: hr(24),
+    memberIds: ['n1', 'n2', 'n3', 'n6'],
+    patient: {
+      id: 'p214',
+      name: 'Dana Kowalski',
+      room: '214',
+      mrn: '•••8804',
+      age: 29,
+      sex: 'F',
+      admittedAt: hr(31),
+      flags: [{ kind: 'allergy', label: 'Latex' }],
+      vitals: {
+        hr: 84, bp: '118/74', spo2: 98, temp: 36.8, resp: 15, pain: 1,
+        takenAt: hr(24),
+        trends: { hr: 'down', bp: 'steady', spo2: 'steady', temp: 'steady' },
+      },
+    },
+  },
+  {
+    id: 'c118',
+    reason: 'Dehydration — IV fluids',
+    notes:
+      'GI bug, orthostatic on arrival. IV placed in 11 minutes; discharged in 2h 25m with zero repeated questions — the model run for this case type.',
+    status: 'discharge',
+    createdBy: 'n7',
+    createdAt: hr(52),
+    lastUpdateAt: hr(49),
+    memberIds: ['n7', 'n5', 'n4'],
+    patient: {
+      id: 'p118',
+      name: 'Rosa Nguyen',
+      room: '118',
+      mrn: '•••2417',
+      age: 41,
+      sex: 'F',
+      admittedAt: hr(53),
+      flags: [{ kind: 'allergy', label: 'Sulfa drugs' }],
+      vitals: {
+        hr: 76, bp: '122/78', spo2: 99, temp: 36.7, resp: 14, pain: 0,
+        takenAt: hr(49),
+        trends: { hr: 'down', bp: 'up', spo2: 'steady', temp: 'steady' },
+      },
+    },
+  },
 ];
 
 /* ----------------------------------------------------------- Timeline entries */
 
 export const timeline: TimelineEntry[] = [
+  // --- c214 (Dana, completed — the "room to improve" training case) ---
+  { id: 't214a', circleId: 'c214', authorId: 'n1', kind: 'join', text: 'opened this Circle', createdAt: hr(30) },
+  { id: 't214b', circleId: 'c214', authorId: 'n1', kind: 'note', text: 'Latex allergy flagged. Chief complaint + history logged before first contact.', createdAt: hr(29.9) },
+  { id: 't214c', circleId: 'c214', authorId: 'n2', kind: 'note', text: 'Handoff taken. Re-asked history at bedside — note to self: it was already in the Circle.', createdAt: hr(28.5) },
+  { id: 't214d', circleId: 'c214', authorId: 'n3', kind: 'note', text: 'IV supplies staged late — line placed after second trip to the cart.', createdAt: hr(27.8) },
+  { id: 't214e', circleId: 'c214', authorId: 'n3', kind: 'voice', text: 'sent a voice message', createdAt: hr(27.7), voiceMessageId: 'v214' },
+  { id: 't214f', circleId: 'c214', authorId: 'n1', kind: 'status', text: 'changed status to discharge', createdAt: hr(24) },
+  // --- c118 (Rosa, completed — the exemplar training case) ---
+  { id: 't118a', circleId: 'c118', authorId: 'n7', kind: 'join', text: 'opened this Circle', createdAt: hr(52) },
+  { id: 't118b', circleId: 'c118', authorId: 'n7', kind: 'note', text: 'Full context in before first contact. Allergies confirmed out loud at handoff.', createdAt: hr(51.8) },
+  { id: 't118c', circleId: 'c118', authorId: 'n5', kind: 'note', text: 'Supplies staged while reviewing the Circle — line in 11 minutes from arrival.', createdAt: hr(51.5) },
+  { id: 't118d', circleId: 'c118', authorId: 'n7', kind: 'note', text: 'Closing note: fluids complete, steady on feet, discharge teaching done.', createdAt: hr(49.2) },
+  { id: 't118e', circleId: 'c118', authorId: 'n7', kind: 'status', text: 'changed status to discharge', createdAt: hr(49) },
   // --- c2 (Eleanor, critical) ---
   {
     id: 't20',
@@ -390,6 +470,14 @@ export const timeline: TimelineEntry[] = [
 /* --------------------------------------------------------------------- Tasks */
 
 export const tasks: Task[] = [
+  // --- c214 (completed case; one task left open at discharge — a teaching point) ---
+  { id: 'tk214a', circleId: 'c214', label: 'Place IV, start fluids', category: 'medication', createdBy: 'n1', status: 'done', createdAt: hr(29.5), completedAt: hr(28.98), durationMs: 31 * 60_000 },
+  { id: 'tk214b', circleId: 'c214', label: 'Repeat vitals after first bag', category: 'assessment', createdBy: 'n2', status: 'done', createdAt: hr(27), completedAt: hr(26.7), durationMs: 18 * 60_000 },
+  { id: 'tk214c', circleId: 'c214', label: 'Discharge teaching — caffeine limits', category: 'documentation', createdBy: 'n1', status: 'open', createdAt: hr(25) },
+  // --- c118 (exemplar; everything closed) ---
+  { id: 'tk118a', circleId: 'c118', label: 'Place IV, start fluids', category: 'medication', createdBy: 'n7', status: 'done', createdAt: hr(51.9), completedAt: hr(51.72), durationMs: 11 * 60_000 },
+  { id: 'tk118b', circleId: 'c118', label: 'Orthostatics before discharge', category: 'assessment', createdBy: 'n5', status: 'done', createdAt: hr(50), completedAt: hr(49.8), durationMs: 12 * 60_000 },
+  { id: 'tk118c', circleId: 'c118', label: 'Discharge teaching — hydration plan', category: 'documentation', createdBy: 'n7', status: 'done', createdAt: hr(49.6), completedAt: hr(49.3), durationMs: 16 * 60_000 },
   // c2
   {
     id: 'tk20',
@@ -484,6 +572,16 @@ export const tasks: Task[] = [
 /* ------------------------------------------------------------- Voice messages */
 
 export const voiceMessages: VoiceMessage[] = [
+  {
+    id: 'v214',
+    circleId: 'c214',
+    senderId: 'n3',
+    durationSec: 6,
+    createdAt: hr(27.7),
+    audioUrl: null,
+    transcript: 'Line is in, fluids running — first bag up. She’s calmer already.',
+    status: 'played',
+  },
   {
     id: 'v20',
     circleId: 'c2',

@@ -2,8 +2,9 @@
    (no digging), then team, walkie-talkie, tasks, and a timestamped activity feed.
    Adding an update or marking a task done is always one tap away. */
 
-import { ArrowLeftRight, Check, ChevronRight, Hash, Plus, Radio, UserPlus } from 'lucide-react';
+import { ArrowLeftRight, Check, ChevronRight, GraduationCap, Hash, Plus, Radio, UserPlus } from 'lucide-react';
 import { useState } from 'react';
+import { trainingSessions } from '../data/demoContent';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Avatar } from '../components/Avatar';
 import { Composer } from '../components/Composer';
@@ -107,6 +108,21 @@ export function CircleDetailScreen() {
       <div className="detail-body">
         {/* Context-first */}
         <PatientContext circle={circle} />
+
+        {/* The loop, closed: a completed session links straight to its AI review. */}
+        {circle.status === 'discharge' && trainingSessions[circle.id] && (
+          <button
+            className="loop-link"
+            onClick={() => navigate(`/training/session/${circle.id}`)}
+          >
+            <GraduationCap size={18} className="t-cyan" />
+            <span style={{ flex: 1 }}>
+              <b>This session has been reviewed → See what the AI learned</b>
+              <span>Vita found {trainingSessions[circle.id].annotations.length} coaching moments in this Circle's record.</span>
+            </span>
+            <ChevronRight size={16} className="t-cyan" />
+          </button>
+        )}
 
         {/* Status */}
         <section className="card card-pad">
@@ -277,6 +293,9 @@ export function CircleDetailScreen() {
             currentNurseId={app.currentNurse.id}
             onComplete={(taskId) => void app.completeTask(taskId)}
           />
+          <p className="t-faint" style={{ fontSize: 'var(--fs-xs)', marginTop: 'var(--s-2)' }}>
+            Completed-task durations are captured (de-identified) — they feed the Training loop.
+          </p>
         </section>
 
         {/* Activity timeline */}

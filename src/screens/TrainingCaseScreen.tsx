@@ -13,7 +13,8 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import { trainingSessions } from '../data/demoContent';
 import { FlagChip } from '../components/FlagChip';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Timeline } from '../components/Timeline';
@@ -23,6 +24,7 @@ import { useApp } from '../store/AppContext';
 
 export function TrainingCaseScreen() {
   const { id = '' } = useParams();
+  const navigate = useNavigate();
   const app = useApp();
   const tc = app.getTrainingCase(id);
   const [generating, setGenerating] = useState(false);
@@ -54,6 +56,20 @@ export function TrainingCaseScreen() {
       <ScreenHeader title={tc.caseLabel} subtitle={`${tc.unit} · discharged`} back backTo="/learn" />
 
       <div className="detail-body">
+        {/* Deep link into the full web review when one exists for this Circle. */}
+        {trainingSessions[tc.sourceCircleId] && (
+          <button
+            className="loop-link"
+            onClick={() => navigate(`/training/session/${tc.sourceCircleId}`)}
+          >
+            <GraduationCap size={18} className="t-cyan" />
+            <span style={{ flex: 1 }}>
+              <b>Open the full session review</b>
+              <span>Recording player, Vita's timestamped coaching, and team discussion.</span>
+            </span>
+          </button>
+        )}
+
         {/* Case summary */}
         <section className="card card-pad">
           <div className="section-title">Case</div>
