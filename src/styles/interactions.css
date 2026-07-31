@@ -1,0 +1,168 @@
+/* =============================================================================
+   Vitali Health AI — Interactions & motion
+   The app-open intro overlay plus a few restrained, brand-true motion touches.
+   ============================================================================= */
+
+/* ----------------------------------------------------------------- Intro */
+.intro {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  padding: calc(var(--safe-top) + var(--s-6)) var(--s-6) calc(var(--safe-bottom) + var(--s-6));
+  background: var(--bg-deep);
+  overflow: hidden;
+  animation: fade-in var(--dur) var(--ease) both;
+}
+
+/* A slow, calm aurora — the one large brand moment, kept subtle. */
+.intro-aurora {
+  position: absolute;
+  inset: -30% -20% auto -20%;
+  height: 70%;
+  background:
+    radial-gradient(40% 60% at 25% 30%, rgba(107, 63, 224, 0.5), transparent 60%),
+    radial-gradient(45% 55% at 70% 25%, rgba(43, 184, 196, 0.42), transparent 62%),
+    radial-gradient(40% 50% at 55% 60%, rgba(61, 214, 140, 0.32), transparent 60%);
+  filter: blur(38px);
+  opacity: 0.55;
+  animation: aurora-drift 14s var(--ease-soft) infinite alternate;
+  pointer-events: none;
+}
+@keyframes aurora-drift {
+  0% { transform: translate3d(-4%, -2%, 0) scale(1); }
+  100% { transform: translate3d(6%, 4%, 0) scale(1.12); }
+}
+
+.intro-skip {
+  position: absolute;
+  top: calc(var(--safe-top) + var(--s-4));
+  right: var(--s-5);
+  z-index: 2;
+  color: var(--text-dim);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  padding: var(--s-1) var(--s-2);
+}
+.intro-skip:hover {
+  color: var(--text);
+}
+
+.intro-inner {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: var(--s-5);
+}
+.intro-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+}
+.intro-word {
+  font-family: var(--font-display);
+  font-size: var(--fs-h2);
+  font-weight: 700;
+  letter-spacing: var(--tracking-display);
+}
+
+.intro-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+  max-width: 34ch;
+  animation: rise-in var(--dur) var(--ease) both;
+}
+.intro-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  color: var(--cyan-bright);
+  background: var(--cyan-soft);
+  border: 1px solid var(--cyan-line);
+  margin-bottom: var(--s-1);
+}
+.intro-title {
+  font-size: var(--fs-h1);
+  font-weight: 700;
+  letter-spacing: var(--tracking-display);
+}
+.intro-body {
+  font-size: var(--fs-body);
+  line-height: 1.6;
+}
+
+.intro-dots {
+  display: flex;
+  gap: var(--s-2);
+}
+.intro-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--r-pill);
+  background: var(--hairline-strong);
+  transition: width var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.intro-dot.is-active {
+  width: 22px;
+  background: var(--cyan);
+}
+
+.intro-cta {
+  width: 100%;
+  max-width: 320px;
+}
+
+/* ---------------------------------------------- Design-refresh touches */
+
+/* The center "create" action gets a soft brand ring on hover — a small lift. */
+.nav-create {
+  position: relative;
+}
+.nav-create::after {
+  content: '';
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  background: var(--brand-gradient);
+  opacity: 0;
+  z-index: -1;
+  transition: opacity var(--dur) var(--ease);
+}
+.nav-create:hover::after {
+  opacity: 0.35;
+}
+
+/* Active bottom-tab gets a tiny brand tick above it. */
+.nav-item {
+  position: relative;
+}
+.nav-item.is-active::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  width: 16px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--cyan), var(--brand-teal));
+}
+
+/* Live-activity cards breathe their border subtly while active. */
+.circle-card.has-live {
+  animation: card-live 2.4s var(--ease) infinite;
+}
+@keyframes card-live {
+  0%, 100% { border-color: var(--cyan-line); }
+  50% { border-color: var(--cyan); }
+}

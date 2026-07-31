@@ -1,0 +1,1019 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Vitali Health AI — Training</title>
+<meta name="description" content="Interactive demo of the Vitali Training tab: an AI coach turns recorded nursing shifts into lessons that train thousands of nurses. Sample data only." />
+<style>
+/* =============================================================================
+   Vitali Health AI — Training tab demo
+   Self-contained single file: styles, mock data, and app logic.
+   Everything below runs on sample data — no backend, no storage, no real patients.
+   ============================================================================= */
+:root {
+  --bg: #05070d;
+  --bg-tint: #070b16;
+  --s1: #0e1320;
+  --s2: #141b2d;
+  --s3: #1b2438;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.14);
+  --text: #e8edf4;
+  --dim: #8a97ad;
+  --faint: #5b6680;
+  --cyan: #3fd9e8;
+  --cyan-soft: rgba(63, 217, 232, 0.12);
+  --cyan-line: rgba(63, 217, 232, 0.35);
+  --cyan-ink: #03222a;
+  --purple: #6b3fe0;
+  --teal: #2bb8c4;
+  --green: #3dd68c;
+  --green-soft: rgba(61, 214, 140, 0.12);
+  --green-line: rgba(61, 214, 140, 0.35);
+  --orange: #f5a623;
+  --orange-soft: rgba(245, 166, 35, 0.12);
+  --orange-line: rgba(245, 166, 35, 0.38);
+  --grad: linear-gradient(90deg, #6b3fe0, #2bb8c4, #3dd68c, #f5a623);
+  --r: 18px;
+  --r-sm: 10px;
+  --font: 'Avenir Next', 'Segoe UI', 'Helvetica Neue', Inter, system-ui, -apple-system, sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background:
+    radial-gradient(1100px 500px at 80% -10%, rgba(107, 63, 224, 0.16), transparent 60%),
+    radial-gradient(900px 480px at 10% 0%, rgba(43, 184, 196, 0.1), transparent 55%),
+    var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15.5px;
+  line-height: 1.55;
+  min-height: 100vh;
+}
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; border-radius: 6px; }
+h1, h2, h3 { letter-spacing: -0.015em; line-height: 1.2; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 22px; }
+
+/* ------------------------------------------------------------------ top bar */
+.topbar {
+  position: sticky; top: 0; z-index: 40;
+  backdrop-filter: blur(14px);
+  background: rgba(5, 7, 13, 0.82);
+  border-bottom: 1px solid var(--line);
+}
+.topbar-in { display: flex; align-items: center; gap: 18px; height: 62px; }
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; }
+.logo-mark {
+  width: 26px; height: 26px; border-radius: 8px; background: var(--grad);
+  position: relative; flex: none;
+}
+.logo-mark::after {
+  content: ''; position: absolute; inset: 3px; border-radius: 6px; background: var(--bg);
+}
+.logo-mark::before {
+  content: ''; position: absolute; inset: 8px; border-radius: 50%;
+  background: var(--cyan); z-index: 1; box-shadow: 0 0 10px rgba(63, 217, 232, 0.8);
+}
+.logo small { color: var(--dim); font-weight: 600; font-size: 12px; margin-left: 2px; }
+.nav { display: flex; gap: 4px; margin-left: 8px; }
+.nav a {
+  color: var(--dim); text-decoration: none; font-weight: 600; font-size: 13.5px;
+  padding: 7px 12px; border-radius: 999px;
+}
+.nav a.on { color: var(--cyan); background: var(--cyan-soft); }
+.nav a:hover { color: var(--text); }
+.top-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.demo-chip {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--dim); border: 1px solid var(--line-strong); border-radius: 999px; padding: 4px 10px;
+}
+.me { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--dim); }
+.me b { color: var(--text); font-size: 13.5px; }
+.ava {
+  width: 34px; height: 34px; border-radius: 50%; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: #fff;
+}
+.ava-maria { background: linear-gradient(140deg, #2bb8c4, #3dd68c); }
+.ava-james { background: linear-gradient(140deg, #6b3fe0, #2bb8c4); }
+.ava-gen   { background: linear-gradient(140deg, #35507a, #22334f); }
+
+/* -------------------------------------------------------------------- cards */
+.card {
+  background: linear-gradient(rgba(255, 255, 255, 0.015), rgba(255, 255, 255, 0)), var(--s1);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+.card-pad { padding: 20px; }
+.section-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--faint); margin-bottom: 12px;
+}
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600; border-radius: 999px; padding: 3px 10px;
+  border: 1px solid var(--line-strong); color: var(--dim);
+}
+.chip-cyan { color: var(--cyan); border-color: var(--cyan-line); background: var(--cyan-soft); }
+.chip-green { color: var(--green); border-color: var(--green-line); background: var(--green-soft); }
+.chip-amber { color: var(--orange); border-color: var(--orange-line); background: var(--orange-soft); }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px;
+  border-radius: 12px; padding: 10px 18px; transition: transform 0.12s ease, background 0.12s ease;
+}
+.btn-primary { background: var(--cyan); color: var(--cyan-ink); }
+.btn-primary:hover { background: #6fe7f3; }
+.btn-ghost { border: 1px solid var(--line-strong); color: var(--text); }
+.btn-ghost:hover { border-color: var(--cyan-line); color: var(--cyan); }
+.btn:active { transform: scale(0.98); }
+
+/* ------------------------------------------------------------------- views */
+main { padding: 30px 0 80px; }
+.view { display: none; }
+.view.on { display: block; animation: fade 0.35s ease; }
+@keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ---------------------------------------------------------------- dashboard */
+.hello h1 { font-size: 30px; margin-bottom: 6px; }
+.hello p { color: var(--dim); }
+.featured {
+  margin-top: 22px; position: relative; overflow: hidden;
+  border: 1px solid var(--line-strong);
+}
+.featured::before {
+  content: ''; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--grad);
+}
+.featured-in { display: flex; gap: 22px; align-items: center; flex-wrap: wrap; }
+.featured-copy { flex: 1 1 380px; }
+.featured-copy h2 { font-size: 21px; margin: 10px 0 8px; }
+.featured-copy p { color: var(--dim); max-width: 60ch; }
+.featured-side { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.badge-big {
+  display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px;
+  color: var(--green); background: var(--green-soft); border: 1px solid var(--green-line);
+  border-radius: 999px; padding: 8px 16px;
+}
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 26px; }
+.stat { padding: 18px; }
+.stat .num { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; }
+.stat .lbl { color: var(--dim); font-size: 13px; margin-top: 3px; }
+.stat .sub { color: var(--green); font-size: 12.5px; font-weight: 600; margin-top: 6px; }
+.stat .sub.rank { color: var(--faint); font-weight: 500; }
+.feeds { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 30px; }
+.feed h3 { font-size: 16px; margin-bottom: 4px; }
+.feed .feed-sub { color: var(--faint); font-size: 13px; margin-bottom: 14px; }
+.sess {
+  width: 100%; text-align: left; display: flex; gap: 14px; align-items: center;
+  padding: 15px 16px; border-radius: 14px; border: 1px solid transparent;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.sess:hover { background: var(--s2); border-color: var(--line-strong); }
+.sess + .sess { margin-top: 6px; }
+.sess-dot { width: 42px; height: 42px; border-radius: 12px; flex: none; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+.sess-dot.review { background: var(--orange-soft); border: 1px solid var(--orange-line); }
+.sess-dot.lesson { background: var(--green-soft); border: 1px solid var(--green-line); }
+.sess-dot.done { background: var(--s3); border: 1px solid var(--line); }
+.sess-body { flex: 1; min-width: 0; }
+.sess-title { display: block; font-weight: 700; font-size: 14.5px; }
+.sess-meta { display: block; color: var(--faint); font-size: 12.5px; margin-top: 2px; }
+.sess-cta { color: var(--cyan); font-size: 13px; font-weight: 700; flex: none; }
+
+/* ------------------------------------------------------------ session review */
+.crumbs { display: flex; align-items: center; gap: 8px; color: var(--faint); font-size: 13px; margin-bottom: 16px; }
+.crumbs button { color: var(--cyan); font-weight: 600; }
+.sr-head { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+.sr-head h1 { font-size: 24px; }
+.sr-head .sub { color: var(--dim); margin-top: 5px; font-size: 14px; }
+.sr-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+
+/* player */
+.player { overflow: hidden; }
+.screen {
+  position: relative; aspect-ratio: 16 / 8.2; background:
+    radial-gradient(420px 200px at 70% 20%, rgba(107, 63, 224, 0.35), transparent 60%),
+    radial-gradient(380px 220px at 20% 90%, rgba(43, 184, 196, 0.28), transparent 60%),
+    #090d17;
+  display: flex; align-items: center; justify-content: center;
+}
+/* TODO: real session video/audio renders here — this panel is a placeholder
+   for the recorded stream (video, or audio + reconstructed event view). */
+.waveform { position: absolute; left: 6%; right: 6%; bottom: 16%; height: 34%; display: flex; align-items: flex-end; gap: 3px; opacity: 0.65; }
+.waveform i { flex: 1; background: linear-gradient(180deg, var(--teal), var(--purple)); border-radius: 3px 3px 0 0; min-height: 8%; }
+.screen .room-tag { position: absolute; top: 14px; left: 16px; font-size: 12px; color: var(--dim); background: rgba(5, 7, 13, 0.6); border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; }
+.screen .rec-tag { position: absolute; top: 14px; right: 16px; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: var(--orange); }
+.play-big {
+  width: 74px; height: 74px; border-radius: 50%; background: rgba(63, 217, 232, 0.16);
+  border: 1px solid var(--cyan-line); color: var(--cyan); font-size: 26px;
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(4px); transition: transform 0.15s ease, background 0.15s ease; z-index: 2;
+}
+.play-big:hover { transform: scale(1.06); background: rgba(63, 217, 232, 0.26); }
+.deck { padding: 14px 18px 18px; }
+.deck-top { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.now { font-size: 12.5px; color: var(--dim); }
+.now b { color: var(--text); font-variant-numeric: tabular-nums; }
+.deck-time { margin-left: auto; font-size: 12.5px; color: var(--faint); font-variant-numeric: tabular-nums; }
+.track-wrap { position: relative; padding: 14px 0 26px; }
+.seek {
+  -webkit-appearance: none; appearance: none; width: 100%; height: 6px; border-radius: 999px;
+  background: linear-gradient(90deg, var(--cyan) var(--pct, 0%), var(--s3) var(--pct, 0%));
+  cursor: pointer; display: block;
+}
+.seek::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--cyan); box-shadow: 0 0 10px rgba(63, 217, 232, 0.7); border: none;
+}
+.seek::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--cyan); border: none; box-shadow: 0 0 10px rgba(63,217,232,.7); }
+.marker {
+  position: absolute; top: 32px; transform: translateX(-50%);
+  width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--bg); padding: 0;
+  transition: transform 0.12s ease;
+}
+.marker.good { background: var(--green); }
+.marker.warn { background: var(--orange); }
+.marker:hover, .marker.on { transform: translateX(-50%) scale(1.45); }
+.marker-legend { display: flex; gap: 16px; margin-top: 2px; font-size: 12px; color: var(--faint); }
+.marker-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 5px; }
+
+/* Vita commentary */
+.vita-panel { display: flex; flex-direction: column; max-height: 640px; }
+.vita-head { display: flex; align-items: center; gap: 10px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+.vita-orb { width: 30px; height: 30px; border-radius: 50%; background: var(--grad); position: relative; flex: none; }
+.vita-orb::after { content: ''; position: absolute; inset: 3px; border-radius: 50%; background: var(--s1); }
+.vita-orb::before { content: ''; position: absolute; inset: 9px; border-radius: 50%; background: var(--cyan); z-index: 1; box-shadow: 0 0 8px rgba(63, 217, 232, 0.9); }
+.vita-head b { font-size: 14.5px; }
+.vita-head span { color: var(--faint); font-size: 12px; }
+.notes { overflow-y: auto; padding: 10px; }
+.note {
+  width: 100%; text-align: left; display: flex; gap: 12px; padding: 12px;
+  border-radius: 12px; border: 1px solid transparent; transition: background 0.12s ease;
+}
+.note:hover { background: var(--s2); }
+.note.on { background: var(--s2); border-color: var(--cyan-line); }
+.note-time {
+  flex: none; font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 700;
+  color: var(--cyan); background: var(--cyan-soft); border-radius: 7px; padding: 3px 7px; height: fit-content;
+}
+.note-k { font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; display: inline-flex; align-items: center; gap: 5px; }
+.note.good .note-k { color: var(--green); }
+.note.warn .note-k { color: var(--orange); }
+.note p { font-size: 13.5px; color: var(--dim); margin-top: 3px; }
+.note p b { color: var(--text); font-weight: 600; }
+
+/* summary + improvements */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 18px; align-items: start; }
+.summary p { color: var(--dim); }
+.summary p b { color: var(--text); }
+.improve { border-color: var(--orange-line); }
+.improve h3, .exemplar h3 { font-size: 16px; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.improve .hint, .exemplar .hint { color: var(--faint); font-size: 12.5px; margin-bottom: 14px; }
+.imp { padding: 13px 14px; border-radius: 12px; background: var(--s2); border: 1px solid var(--line); }
+.imp + .imp { margin-top: 10px; }
+.imp-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.imp-cat { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--orange); }
+.exemplar .imp-cat { color: var(--green); }
+.imp-t { font-size: 11.5px; color: var(--cyan); font-weight: 700; font-variant-numeric: tabular-nums; }
+.imp b { display: block; font-size: 14px; margin-top: 4px; }
+.imp p { color: var(--dim); font-size: 13.5px; margin-top: 4px; }
+.imp p em { color: var(--text); font-style: normal; font-weight: 600; }
+
+/* metrics */
+.metrics { margin-top: 18px; }
+.metrics-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.legend { display: flex; gap: 16px; margin-left: auto; font-size: 12.5px; color: var(--dim); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.m-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; margin-top: 16px; }
+.metric { padding: 14px 16px; border-radius: 14px; background: var(--s2); border: 1px solid var(--line); }
+.metric .m-name { font-size: 13px; color: var(--dim); }
+.metric .m-val { font-size: 20px; font-weight: 700; margin: 4px 0 10px; }
+.metric .m-val small { font-size: 12.5px; color: var(--faint); font-weight: 500; }
+.bar { height: 10px; border-radius: 5px; background: var(--s3); position: relative; overflow: hidden; margin-bottom: 6px; }
+.bar > i { position: absolute; inset: 0 auto 0 0; border-radius: 5px; }
+.bar.session > i { background: var(--orange); }
+.bar.bench > i { background: var(--cyan); }
+.bar-lbl { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--faint); margin-bottom: 6px; }
+.m-note { font-size: 12px; margin-top: 8px; }
+.m-note button { color: var(--cyan); font-weight: 600; font-size: 12px; }
+.metric.hit { border-color: var(--green-line); }
+.metric.hit .bar.session > i { background: var(--green); }
+.delta { font-size: 12px; font-weight: 700; }
+.delta.bad { color: var(--orange); }
+.delta.good { color: var(--green); }
+
+/* comments */
+.comments { margin-top: 18px; }
+.comment { display: flex; gap: 12px; padding: 14px 0; border-top: 1px solid var(--line); }
+.comment:first-of-type { border-top: none; }
+.comment .who { font-size: 13px; font-weight: 700; }
+.comment .who span { color: var(--faint); font-weight: 500; font-size: 12px; margin-left: 6px; }
+.comment p { color: var(--dim); font-size: 14px; margin-top: 3px; }
+.comment .likes { color: var(--faint); font-size: 12px; margin-top: 6px; }
+.comment .likes button { color: var(--faint); }
+.comment .likes button:hover { color: var(--cyan); }
+.composer { display: flex; gap: 12px; margin-top: 14px; align-items: flex-start; }
+.composer textarea {
+  flex: 1; background: var(--s2); border: 1px solid var(--line-strong); border-radius: 12px;
+  color: var(--text); font: inherit; font-size: 14px; padding: 11px 14px; resize: vertical; min-height: 44px;
+}
+.composer textarea::placeholder { color: var(--faint); }
+.composer textarea:focus { outline: none; border-color: var(--cyan-line); }
+
+/* ------------------------------------------------------------- scale view */
+.scale-hero { text-align: center; padding: 46px 20px 10px; }
+.scale-hero h1 { font-size: 30px; max-width: 22ch; margin: 0 auto 10px; }
+.scale-hero p { color: var(--dim); max-width: 62ch; margin: 0 auto; }
+.constellation { position: relative; margin: 8px auto 0; max-width: 860px; }
+.constellation svg { width: 100%; height: auto; display: block; }
+.const-center {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  text-align: center; width: 240px;
+}
+.const-center .num { font-size: 44px; font-weight: 700; letter-spacing: -0.03em; background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.const-center .lbl { color: var(--dim); font-size: 13.5px; }
+.node { fill: #22334f; }
+.node.lit { fill: var(--cyan); }
+.edge { stroke: rgba(63, 217, 232, 0.14); stroke-width: 1; }
+.pulse { animation: pulse 2.6s ease-in-out infinite; transform-origin: center; }
+@keyframes pulse { 0%, 100% { opacity: 0.75; } 50% { opacity: 1; } }
+.scale-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; max-width: 860px; margin: 6px auto 0; }
+.lesson-quote {
+  max-width: 720px; margin: 26px auto 0; padding: 24px 26px; position: relative;
+  border-color: var(--green-line);
+}
+.lesson-quote::before { content: ''; position: absolute; inset: 0 auto 0 0; width: 3px; border-radius: 3px; background: var(--grad); }
+.lesson-quote .q { font-size: 17px; line-height: 1.6; }
+.lesson-quote .a { color: var(--faint); font-size: 13px; margin-top: 12px; }
+
+/* --------------------------------------------------------------- Vita FAB */
+.vita-fab {
+  position: fixed; right: 22px; bottom: 22px; z-index: 60;
+  display: flex; align-items: center; gap: 10px;
+  background: var(--s2); border: 1px solid var(--cyan-line); border-radius: 999px;
+  padding: 9px 18px 9px 10px; font-weight: 700; font-size: 14px;
+  box-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.7), 0 0 24px rgba(63, 217, 232, 0.12);
+}
+.vita-fab:hover { border-color: var(--cyan); }
+.vita-sheet {
+  position: fixed; right: 22px; bottom: 84px; z-index: 60; width: min(370px, calc(100vw - 44px));
+  display: none; flex-direction: column; overflow: hidden;
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.8);
+}
+.vita-sheet.open { display: flex; animation: fade 0.25s ease; }
+.vita-msg { padding: 16px 18px; font-size: 14px; color: var(--dim); }
+.vita-msg b { color: var(--text); }
+.vita-actions { display: flex; gap: 8px; padding: 0 18px 16px; flex-wrap: wrap; }
+.vita-actions button {
+  font-size: 12.5px; font-weight: 700; color: var(--cyan);
+  border: 1px solid var(--cyan-line); border-radius: 999px; padding: 6px 12px;
+}
+.vita-actions button:hover { background: var(--cyan-soft); }
+
+/* ------------------------------------------------------------------ footer */
+footer { border-top: 1px solid var(--line); padding: 34px 0 46px; margin-top: 30px; }
+footer h4 { font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--faint); margin-bottom: 10px; }
+footer p { color: var(--dim); font-size: 13.5px; max-width: 88ch; }
+footer p + p { margin-top: 10px; }
+footer .fine { color: var(--faint); font-size: 12px; margin-top: 16px; }
+
+/* -------------------------------------------------------------- responsive */
+@media (max-width: 900px) {
+  .sr-grid, .feeds, .two-col { grid-template-columns: 1fr; }
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .scale-stats { grid-template-columns: 1fr; }
+  .vita-panel { max-height: none; }
+  .nav { display: none; }
+}
+/* ---------------------------------------------------------- reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: 0.001s !important; transition-duration: 0.001s !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- =========================================================== top bar -->
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <span class="logo"><span class="logo-mark" aria-hidden="true"></span>Vitali<small>Training</small></span>
+    <nav class="nav" aria-label="Training sections">
+      <a href="#home" data-nav="home" class="on">My training</a>
+      <a href="#scale" data-nav="scale">One shift → thousands</a>
+    </nav>
+    <div class="top-right">
+      <span class="demo-chip" title="Everything on this page is sample data — no real patients">Demo · sample data</span>
+      <span class="me"><span class="ava ava-maria" aria-hidden="true">MS</span><span><b>Maria Santos</b>, RN</span></span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- ====================================================== dashboard -->
+  <section class="view on" id="view-home" aria-label="Training home">
+    <div class="hello">
+      <h1>Good morning, Maria</h1>
+      <p>3 of your shifts were reviewed this week. Your coach found a few minutes worth revisiting.</p>
+    </div>
+
+    <!-- featured lesson: the exemplar that trains thousands -->
+    <div class="card card-pad featured">
+      <div class="featured-in">
+        <div class="featured-copy">
+          <span class="chip chip-green">★ Featured lesson · most learned-from this month</span>
+          <h2>Room 118 · Dehydration · IV fluids — handled the way it should go</h2>
+          <p>James Okafor's team placed the IV in 11 minutes with zero repeated questions. Watch how staging,
+            handoffs, and shared context fit together — then Vita turns it into habits you can use tonight.</p>
+        </div>
+        <div class="featured-side">
+          <span class="badge-big" id="featured-count">🎓 1,247 nurses trained from this</span>
+          <button class="btn btn-primary" data-open="b">Watch the lesson ▸</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- progress stats -->
+    <div class="stats">
+      <div class="card stat"><div class="num">18</div><div class="lbl">Lessons completed</div><div class="sub">+4 this week</div></div>
+      <div class="card stat"><div class="num">IV placement</div><div class="lbl">Top skill improving</div><div class="sub">22% faster than last month</div></div>
+      <div class="card stat"><div class="num">6 days</div><div class="lbl">Learning streak</div><div class="sub">Longest yet 🔥</div></div>
+      <div class="card stat"><div class="num">Top 15%</div><div class="lbl">Among peers on 4 West</div><div class="sub rank">Quietly climbing</div></div>
+    </div>
+
+    <!-- feeds -->
+    <div class="feeds">
+      <div class="card card-pad feed">
+        <h3>From your shifts</h3>
+        <p class="feed-sub">Circles you were part of, reviewed by your coach.</p>
+        <button class="sess" data-open="a">
+          <span class="sess-dot review" aria-hidden="true">⚠️</span>
+          <span class="sess-body">
+            <span class="sess-title">Room 214 · Caffeine toxicity · IV fluids</span>
+            <span class="sess-meta">Tuesday night · 4 nurses · 3 coaching moments found</span>
+          </span>
+          <span class="sess-cta">Review ▸</span>
+        </button>
+        <button class="sess" data-open="a">
+          <span class="sess-dot done" aria-hidden="true">✅</span>
+          <span class="sess-body">
+            <span class="sess-title">Room 209 · Post-op monitoring</span>
+            <span class="sess-meta">Monday · reviewed · clean run, 1 tip on documentation</span>
+          </span>
+          <span class="sess-cta">Revisit</span>
+        </button>
+        <button class="sess" data-open="a">
+          <span class="sess-dot done" aria-hidden="true">✅</span>
+          <span class="sess-body">
+            <span class="sess-title">Room 226 · Fall-risk admission</span>
+            <span class="sess-meta">Sunday · reviewed · strong handoff, featured to 3 teams</span>
+          </span>
+          <span class="sess-cta">Revisit</span>
+        </button>
+      </div>
+      <div class="card card-pad feed">
+        <h3>Learn from your team</h3>
+        <p class="feed-sub">Exemplary Circles from other nurses, turned into lessons.</p>
+        <button class="sess" data-open="b">
+          <span class="sess-dot lesson" aria-hidden="true">★</span>
+          <span class="sess-body">
+            <span class="sess-title">Room 118 · Dehydration · IV fluids</span>
+            <span class="sess-meta">James Okafor, RN · 1,247 nurses trained · 4.9★</span>
+          </span>
+          <span class="sess-cta">Learn ▸</span>
+        </button>
+        <button class="sess" data-open="b">
+          <span class="sess-dot lesson" aria-hidden="true">★</span>
+          <span class="sess-body">
+            <span class="sess-title">Room 302 · Sepsis escalation done right</span>
+            <span class="sess-meta">Amara Diallo, RN · 892 nurses trained</span>
+          </span>
+          <span class="sess-cta">Learn ▸</span>
+        </button>
+        <button class="sess" data-open="b">
+          <span class="sess-dot lesson" aria-hidden="true">★</span>
+          <span class="sess-body">
+            <span class="sess-title">Room 141 · Calm de-escalation, family at bedside</span>
+            <span class="sess-meta">Rosa Delgado, RN · 613 nurses trained</span>
+          </span>
+          <span class="sess-cta">Learn ▸</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================= session review -->
+  <section class="view" id="view-session" aria-label="Session review">
+    <div class="crumbs"><button data-nav-to="home">My training</button> <span>›</span> <span id="sr-crumb">Session review</span></div>
+    <div class="sr-head">
+      <div>
+        <h1 id="sr-title"></h1>
+        <p class="sub" id="sr-sub"></p>
+      </div>
+      <span class="chip chip-cyan" id="sr-chip" style="margin-left:auto"></span>
+    </div>
+
+    <div class="sr-grid">
+      <!-- player column -->
+      <div>
+        <div class="card player">
+          <div class="screen">
+            <span class="room-tag" id="sr-room"></span>
+            <span class="rec-tag">● REC REVIEW</span>
+            <div class="waveform" id="waveform" aria-hidden="true"></div>
+            <button class="play-big" id="play" aria-label="Play recording">▶</button>
+          </div>
+          <div class="deck">
+            <div class="deck-top">
+              <span class="now">Now playing · <b id="now-t">0:00</b> <span id="now-note"></span></span>
+              <span class="deck-time" id="dur"></span>
+            </div>
+            <div class="track-wrap">
+              <!-- TODO: real player — timeline is driven by the session's actual media duration -->
+              <input type="range" class="seek" id="seek" min="0" max="380" value="0" step="1" aria-label="Seek recording" />
+              <div id="markers"></div>
+            </div>
+            <div class="marker-legend" aria-hidden="true">
+              <span><i style="background:var(--green)"></i>Strong moment</span>
+              <span><i style="background:var(--orange)"></i>Could be smoother</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- what happened + improvements -->
+        <div class="two-col">
+          <div class="card card-pad summary">
+            <div class="section-label">What happened</div>
+            <p id="sr-summary"></p>
+          </div>
+          <div class="card card-pad" id="sr-improve-card">
+            <h3 id="sr-improve-title"></h3>
+            <p class="hint" id="sr-improve-hint"></p>
+            <div id="sr-improvements"></div>
+          </div>
+        </div>
+
+        <!-- metrics vs benchmark -->
+        <div class="card card-pad metrics">
+          <div class="metrics-head">
+            <div class="section-label" style="margin:0">This session vs best practice</div>
+            <div class="legend" aria-hidden="true">
+              <span><i style="background:var(--orange)"></i>This session</span>
+              <span><i style="background:var(--cyan)"></i>Best practice</span>
+            </div>
+          </div>
+          <div class="m-grid" id="sr-metrics"></div>
+        </div>
+
+        <!-- nurse comments -->
+        <div class="card card-pad comments">
+          <div class="section-label">Team discussion · <span id="c-count"></span></div>
+          <div id="c-list"></div>
+          <div class="composer">
+            <span class="ava ava-maria" aria-hidden="true">MS</span>
+            <textarea id="c-input" placeholder="Share what you'd do differently, or what you're taking from this…" aria-label="Write a comment"></textarea>
+            <button class="btn btn-primary" id="c-post">Post</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Vita commentary column -->
+      <div class="card vita-panel">
+        <div class="vita-head">
+          <span class="vita-orb" aria-hidden="true"></span>
+          <div><b>Vita · session review</b><br /><span>Timestamped coaching, moment by moment</span></div>
+        </div>
+        <!-- TODO: real AI generates these annotations from session audio + logged events,
+             aligned to the media timeline (ASR → event understanding → benchmark comparison). -->
+        <div class="notes" id="notes"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================================================== one-to-many -->
+  <section class="view" id="view-scale" aria-label="How one shift trains thousands">
+    <div class="scale-hero">
+      <span class="chip chip-cyan">The multiplier</span>
+      <h1>One real shift becomes a lesson that trains thousands</h1>
+      <p>When a team handles a case exceptionally well, Vita extracts the transferable lesson and routes it to every
+        nurse who faces similar cases — so one nurse's best night becomes everyone's baseline.</p>
+    </div>
+
+    <div class="constellation" id="constellation">
+      <svg viewBox="0 0 860 420" role="img" aria-label="A network visual: one exemplary session at the center connected to hundreds of nurse nodes radiating outward"></svg>
+      <div class="const-center">
+        <div class="num" id="big-count">0</div>
+        <div class="lbl">nurses trained from<br /><b style="color:var(--text)">Room 118 · one 2h 25m shift</b></div>
+      </div>
+    </div>
+
+    <div class="scale-stats">
+      <div class="card stat"><div class="num" style="color:var(--green)">+19%</div><div class="lbl">faster IV placement on trainees' next shift</div></div>
+      <div class="card stat"><div class="num" style="color:var(--green)">−74%</div><div class="lbl">repeated questions to patients after this lesson</div></div>
+      <div class="card stat"><div class="num">42 hospitals</div><div class="lbl">where this lesson is in rotation</div></div>
+    </div>
+
+    <div class="card lesson-quote">
+      <div class="section-label">The generalized lesson Vita extracted</div>
+      <p class="q">“Stage before you enter, confirm flagged items out loud at every handoff, and trust the shared
+        context instead of re-asking. These three habits cut this case's time nearly in half — without rushing.”</p>
+      <p class="a">— Extracted from Room 118 (James Okafor, RN) · verified against 3,400 similar IV-fluid cases</p>
+    </div>
+
+    <div style="text-align:center; margin-top:28px">
+      <button class="btn btn-ghost" data-open="b">Watch the source session ▸</button>
+    </div>
+  </section>
+</main>
+
+<!-- ===================================================== Vita through-line -->
+<div class="vita-sheet card" id="vita-sheet" role="dialog" aria-label="Vita assistant">
+  <div class="vita-head">
+    <span class="vita-orb" aria-hidden="true"></span>
+    <div><b>Vita</b><br /><span>Your clinical coach</span></div>
+    <button style="margin-left:auto;color:var(--faint);font-size:18px" id="vita-close" aria-label="Close Vita">×</button>
+  </div>
+  <div class="vita-msg" id="vita-msg"></div>
+  <div class="vita-actions">
+    <button data-vita="explain">Explain this to me</button>
+    <button data-vita="practice">What should I practice?</button>
+  </div>
+</div>
+<button class="vita-fab" id="vita-fab" aria-expanded="false" aria-controls="vita-sheet">
+  <span class="vita-orb" aria-hidden="true"></span> Ask Vita
+</button>
+
+<!-- ============================================================ footer -->
+<footer>
+  <div class="wrap">
+    <h4>About the technology</h4>
+    <p>Vitali's training engine analyzes recorded clinical sessions end-to-end: it transcribes the team's
+      walkie-talkie audio, aligns it with the timestamped actions and process metrics captured in each Circle,
+      reconstructs what happened, and compares the run against best-practice benchmarks built from thousands of
+      similar cases. From that comparison it generates the timestamped coaching you see here — and when a session
+      is exemplary, it extracts the transferable lesson and distributes it to every nurse who handles similar
+      cases. The pipeline is designed to scale to large volumes of real-world workflow data across hospital systems.</p>
+    <p class="fine">Interactive demo for NVIDIA Inception · every patient, nurse, and number on this page is
+      sample data created for demonstration · Vitali Health AI</p>
+  </div>
+</footer>
+
+<script>
+/* =============================================================================
+   MOCK DATA — edit freely; this object is the demo's entire "backend".
+   In production each session object is produced by the AI pipeline:
+   // TODO: real transcription + video analysis generates annotations, summaries,
+   //       improvement notes, and metric benchmarks from session audio + events.
+   ============================================================================= */
+const DB = {
+  sessions: {
+    a: {
+      title: 'Room 214 · Caffeine toxicity · IV fluids',
+      sub: 'Tuesday night · team of 4 nurses · resolved, with room to improve',
+      room: 'Room 214 · Session recording',
+      chip: '3 coaching moments',
+      duration: 380, // 6:20
+      summary:
+        `A patient arrived needing IV fluids for caffeine toxicity. Four nurses coordinated over the shift and the ` +
+        `case <b>resolved safely</b> — but the patient waited <b>5 hours 32 minutes</b> for what similar teams finish ` +
+        `in under three. The delay didn't come from one big mistake: it came from small seams — an unconfirmed ` +
+        `handoff, repeated questions, and supplies staged late. Each one is fixable, and each is called out below.`,
+      improveTitle: '⚡ What could have been better',
+      improveHint: 'Not just speed — communication, sequencing, and safety. Each note links to the moment it happened.',
+      annotations: [
+        { t: 42,  kind: 'good', head: 'Strong start',
+          text: '<b>First nurse created the Circle</b> and logged allergy info and chief complaint clearly before anyone entered the room. That context should carry the whole case.' },
+        { t: 75,  kind: 'warn', head: 'Handoff — flagged items not confirmed',
+          text: 'During handoff to the second nurse, the <b>allergy note wasn’t verbally confirmed</b>; the incoming nurse re-asked the patient. Better move: a 10-second verbal confirmation of flagged items at every handoff.' },
+        { t: 123, kind: 'warn', head: 'Third repeat of the same questions',
+          text: 'The patient was asked their <b>name and history for the 3rd time</b>. All of it was already in the Circle — one tap away. This is exactly the repetition the shared context exists to eliminate.' },
+        { t: 210, kind: 'warn', head: 'Supplies staged late',
+          text: '<b>IV placement was delayed</b> because supplies weren’t staged in advance. Better move: stage supplies while reviewing the Circle, before entering the room.' },
+        { t: 250, kind: 'good', head: 'Clean call-out on the line',
+          text: 'Clear walkie-talkie call-out when the line was in, so the <b>whole team stayed in sync</b> without stepping into the room.' },
+      ],
+      improvements: [
+        { cat: 'Safety · handoff completeness', t: '1:15',
+          head: 'Confirm flagged items out loud at handoff',
+          text: 'The allergy flag was in the Circle but never verbally confirmed — that’s how allergy information gets lost. <em>The fix costs 10 seconds and closes a real safety gap.</em> This isn’t about speed.' },
+        { cat: 'Communication', t: '2:03',
+          head: 'Trust the shared context instead of re-asking',
+          text: 'Three nurses asked the patient overlapping questions instead of reading the Circle. <em>Reading before entering</em> spares the patient and frees minutes of nurse time.' },
+        { cat: 'Sequencing', t: '3:30',
+          head: 'Stage supplies before entering',
+          text: 'Supplies were gathered after the room assessment, adding <em>~8 minutes</em> to IV placement. Staging while reviewing the Circle would have run these steps in parallel.' },
+      ],
+      metrics: [
+        { name: 'Time to IV placement', session: 31, bench: 12, unit: 'min', max: 35,
+          note: 'Driven by late staging — <b>see 3:30</b>', noteT: 210 },
+        { name: 'Repeated questions to patient', session: 3, bench: 0, unit: '', max: 4 },
+        { name: 'Handoff completeness', session: 60, bench: 100, unit: '%', max: 100, higherBetter: true },
+        { name: 'Total patient wait', session: 332, bench: 160, unit: 'min', max: 350, fmt: 'hm' },
+      ],
+      comments: [
+        { who: 'Aisha', role: 'RN', ava: 'A', likes: 12,
+          text: 'The handoff confirmation thing is so real. We lose allergy info this way all the time. Going to start doing the 10-second verbal check.' },
+        { who: 'Daniel', role: 'RN · ICU', ava: 'D', likes: 8,
+          text: 'Staging supplies first sounds obvious but I never think to do it under pressure. Watching it laid out like this actually helps.' },
+        { who: 'Priya', role: 'RN', ava: 'P', likes: 15,
+          text: 'Wish every floor reviewed shifts like this. You never get to see what you could’ve done better in the moment.' },
+        { who: 'Marcus', role: 'RN · intern', ava: 'M', likes: 21,
+          text: 'As a new grad this is gold. I learned more from this 6-min review than a week of orientation.' },
+      ],
+    },
+
+    b: {
+      title: 'Room 118 · Dehydration · IV fluids',
+      sub: 'James Okafor, RN & team · the model run — featured lesson',
+      room: 'Room 118 · Session recording',
+      chip: '★ 1,247 nurses trained',
+      duration: 285, // 4:45
+      summary:
+        `A similar IV-fluids case, handled the way the workflow is meant to go: <b>IV placed in 11 minutes</b>, ` +
+        `patient discharged in <b>2 hours 25 minutes</b>, and <b>zero repeated questions</b>. Nothing here was rushed — ` +
+        `the time came from sequencing and communication, not speed. That’s why this session became a lesson: ` +
+        `it’s a repeatable pattern, not a heroic one-off.`,
+      improveTitle: '🏆 What made this the model',
+      improveHint: 'The habits Vita extracted — each one transferable to your next similar case.',
+      annotations: [
+        { t: 35,  kind: 'good', head: 'Circle created with full context',
+          text: 'Chief complaint, allergies, and history logged <b>before first contact</b> — every teammate started informed.' },
+        { t: 62,  kind: 'good', head: 'Allergies confirmed out loud',
+          text: 'At handoff, flagged items were <b>verbally confirmed in seconds</b> — no re-asking the patient, no safety gap.' },
+        { t: 108, kind: 'good', head: 'Supplies staged before entry',
+          text: 'The IV kit was staged <b>while reviewing the Circle</b>, so assessment and setup ran in parallel.' },
+        { t: 160, kind: 'good', head: 'Tight walkie coordination',
+          text: 'Short, precise call-outs kept the team synced <b>without anyone leaving their task</b>.' },
+        { t: 252, kind: 'good', head: 'Clean closing note',
+          text: 'The closing summary made the next shift’s pickup trivial — <b>the record teaches by itself</b>.' },
+      ],
+      improvements: [
+        { cat: 'Habit 1 · Sequencing', t: '1:48',
+          head: 'Stage before you enter',
+          text: 'Setup happened in parallel with review, not after it. <em>This one habit saved ~8 minutes</em> versus the average similar case.' },
+        { cat: 'Habit 2 · Safety', t: '1:02',
+          head: 'Confirm flagged items out loud, every handoff',
+          text: 'Ten seconds of verbal confirmation kept the allergy chain intact across all three handoffs.' },
+        { cat: 'Habit 3 · Communication', t: '0:35',
+          head: 'Trust the shared context',
+          text: 'No nurse re-asked what the Circle already knew — <em>zero repeated questions</em>, calmer patient, faster run.' },
+      ],
+      metrics: [
+        { name: 'Time to IV placement', session: 11, bench: 12, unit: 'min', max: 35, higherBetter: false, hit: true },
+        { name: 'Repeated questions to patient', session: 0, bench: 0, unit: '', max: 4, hit: true },
+        { name: 'Handoff completeness', session: 100, bench: 100, unit: '%', max: 100, higherBetter: true, hit: true },
+        { name: 'Total patient wait', session: 145, bench: 160, unit: 'min', max: 350, fmt: 'hm', hit: true },
+      ],
+      comments: [
+        { who: 'Elena', role: 'RN', ava: 'E', likes: 34,
+          text: 'I’ve watched this three times. The staging-while-reviewing move changed how I set up every room now.' },
+        { who: 'Tomas', role: 'RN · float pool', ava: 'T', likes: 19,
+          text: 'What strikes me is how calm it is. Nobody rushes — the minutes come from the sequence, not the pace.' },
+      ],
+    },
+  },
+
+  /* Vita's canned coaching per view — in production these are generated live.
+     // TODO: real AI assistant answers grounded in the session on screen. */
+  vita: {
+    home: {
+      explain: `<b>Here’s where you stand:</b> you’ve completed 18 lessons and your IV placement is 22% faster than last month. Three of your shifts were reviewed this week — start with <b>Room 214</b>: I found three moments there worth two minutes of your time, and one of them is a safety habit, not a speed thing.`,
+      practice: `Based on your recent shifts, practice the <b>10-second verbal confirmation of flagged items at handoff</b>. It showed up in Room 214, and it’s the habit with the biggest safety payoff. The Room 118 lesson shows it done perfectly at 1:02.`,
+    },
+    'session-a': {
+      explain: `<b>Short version:</b> the team resolved a caffeine-toxicity case safely, but the patient waited 5½ hours for what similar teams finish in under three. The minutes leaked at three seams — an unconfirmed handoff (1:15), repeated questions (2:03), and late supply staging (3:30). None of these are effort problems; they’re sequence and communication habits, and all three are teachable.`,
+      practice: `From this session: <b>stage supplies while you review the Circle</b>, before entering. It’s the single change that would have saved the most time here (~8 minutes), and it pairs naturally with the verbal allergy confirmation at handoff.`,
+    },
+    'session-b': {
+      explain: `<b>Why this is the model:</b> nothing here is fast because someone hurried — it’s fast because the sequence is right. Context first (0:35), allergies confirmed out loud (1:02), supplies staged in parallel (1:48), tight call-outs (2:40). The result: IV in 11 minutes, zero repeated questions, discharge in 2h 25m.`,
+      practice: `Steal the three habits in order: <b>stage before you enter, confirm flagged items out loud, trust the shared context</b>. Nurses who completed this lesson placed IVs 19% faster on their very next shift.`,
+    },
+    scale: {
+      explain: `<b>This is the multiplier:</b> one exemplary 2h 25m shift became a lesson that has now trained 1,247 nurses across 42 hospitals — and they placed IVs 19% faster on their next shift. Every strong run on the floor compounds like this: recorded once, taught everywhere.`,
+      practice: `Open the source session and watch 1:02 and 1:48 — those two moments carry most of the lesson. Then try both habits on your next IV-fluids case; I’ll look for them in your next review.`,
+    },
+  },
+};
+
+/* =============================================================================
+   APP — view routing, player simulation, rendering, comments (in-memory only).
+   ============================================================================= */
+(() => {
+  const $ = (s, el = document) => el.querySelector(s);
+  const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const fmtT = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  const fmtHM = (m) => `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
+
+  /* ------------------------------------------------------------- routing */
+  let currentView = 'home';
+  let currentSession = 'a';
+  function show(view) {
+    currentView = view;
+    $$('.view').forEach((v) => v.classList.remove('on'));
+    $(`#view-${view === 'session' ? 'session' : view}`).classList.add('on');
+    $$('.nav a').forEach((a) => a.classList.toggle('on', a.dataset.nav === view));
+    stopPlayback();
+    window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
+    if (view === 'scale') animateCount();
+  }
+  window.addEventListener('hashchange', route);
+  function route() {
+    const h = location.hash.slice(1) || 'home';
+    if (h === 'scale') show('scale');
+    else if (h.startsWith('session-')) { openSession(h.split('-')[1] || 'a'); }
+    else show('home');
+  }
+  $$('[data-open]').forEach((b) => b.addEventListener('click', () => { location.hash = `session-${b.dataset.open}`; }));
+  $$('[data-nav-to]').forEach((b) => b.addEventListener('click', () => { location.hash = b.dataset.navTo === 'home' ? 'home' : b.dataset.navTo; }));
+
+  /* ---------------------------------------------------- session rendering */
+  const localComments = { a: [], b: [] }; // in-memory only — intentionally NOT persisted
+
+  function openSession(id) {
+    currentSession = DB.sessions[id] ? id : 'a';
+    const S = DB.sessions[currentSession];
+    $('#sr-title').textContent = S.title;
+    $('#sr-crumb').textContent = S.title.split(' · ')[0];
+    $('#sr-sub').textContent = S.sub;
+    $('#sr-chip').textContent = S.chip;
+    $('#sr-room').textContent = S.room;
+    $('#dur').textContent = fmtT(S.duration);
+    $('#seek').max = S.duration;
+    $('#seek').value = 0;
+    $('#sr-summary').innerHTML = S.summary;
+    $('#sr-improve-title').textContent = S.improveTitle;
+    $('#sr-improve-hint').textContent = S.improveHint;
+    $('#sr-improve-card').className = `card card-pad ${currentSession === 'a' ? 'improve' : 'exemplar'}`;
+
+    // waveform (decorative)
+    $('#waveform').innerHTML = Array.from({ length: 64 }, () =>
+      `<i style="height:${8 + Math.round(Math.random() * 88)}%"></i>`).join('');
+
+    // timeline markers + Vita notes
+    $('#markers').innerHTML = S.annotations.map((a, i) =>
+      `<button class="marker ${a.kind}" style="left:${(a.t / S.duration) * 100}%" data-i="${i}"
+        aria-label="${a.kind === 'good' ? 'Strong moment' : 'Coaching moment'} at ${fmtT(a.t)}: ${a.head}"
+        title="${fmtT(a.t)} — ${a.head}"></button>`).join('');
+    $('#notes').innerHTML = S.annotations.map((a, i) =>
+      `<button class="note ${a.kind}" data-i="${i}">
+        <span class="note-time">${fmtT(a.t)}</span>
+        <span><span class="note-k">${a.kind === 'good' ? '✔ Strong moment' : '⚑ Could be smoother'}</span><p>${a.text}</p></span>
+      </button>`).join('');
+    $$('#markers .marker, #notes .note').forEach((el) =>
+      el.addEventListener('click', () => seekTo(S.annotations[+el.dataset.i].t, true)));
+
+    // improvements / model habits
+    $('#sr-improvements').innerHTML = S.improvements.map((p) =>
+      `<div class="imp">
+        <div class="imp-head"><span class="imp-cat">${p.cat}</span><span class="imp-t">at ${p.t}</span></div>
+        <b>${p.head}</b><p>${p.text}</p>
+      </div>`).join('');
+
+    // metrics vs benchmark — paired thin bars, direct labels, entity-stable colors
+    $('#sr-metrics').innerHTML = S.metrics.map((m) => {
+      const v = (x) => (m.fmt === 'hm' ? fmtHM(x) : `${x}${m.unit ? (m.unit === '%' ? '' : ' ') + m.unit : ''}`);
+      const worse = m.higherBetter ? m.session < m.bench : m.session > m.bench;
+      // Sign reflects the direction of the difference (above/below best practice).
+      const sign = m.session > m.bench ? '+' : '−';
+      const delta = m.session === m.bench ? 'on target'
+        : m.fmt === 'hm' ? `${sign}${fmtHM(Math.abs(m.session - m.bench))} vs best`
+        : `${sign}${Math.abs(m.session - m.bench)}${m.unit} vs best`;
+      return `<div class="metric ${m.hit ? 'hit' : ''}">
+        <div class="m-name">${m.name}</div>
+        <div class="m-val">${v(m.session)} <small>/ best practice ${v(m.bench)}</small></div>
+        <div class="bar session" role="img" aria-label="This session: ${v(m.session)}"><i style="width:${Math.min(100, (m.session / m.max) * 100)}%"></i></div>
+        <div class="bar bench" role="img" aria-label="Best practice: ${v(m.bench)}"><i style="width:${Math.min(100, (m.bench / m.max) * 100)}%"></i></div>
+        <span class="delta ${m.hit || !worse ? 'good' : 'bad'}">${m.hit ? '✔ ' : ''}${delta}</span>
+        ${m.note ? `<div class="m-note">${m.note.replace('<b>see', '<button data-seek="' + m.noteT + '"><b>see')}</b></button></div>` : ''}
+      </div>`;
+    }).join('');
+    $$('#sr-metrics [data-seek]').forEach((b) =>
+      b.addEventListener('click', () => seekTo(+b.dataset.seek, true)));
+
+    renderComments();
+    show('session');
+    setTime(0);
+  }
+
+  /* --------------------------------------------------------- fake player */
+  // TODO: replace with the real media element; the sim just drives the same UI.
+  let playing = false, timer = null, t = 0;
+  const RATE = 4; // demo playback advances 4× so reviewers see the arc quickly
+
+  function setTime(sec) {
+    const S = DB.sessions[currentSession];
+    t = Math.max(0, Math.min(S.duration, sec));
+    const seek = $('#seek');
+    seek.value = t;
+    seek.style.setProperty('--pct', `${(t / S.duration) * 100}%`);
+    $('#now-t').textContent = fmtT(t);
+    // active annotation = the latest one at or before t
+    let active = -1;
+    S.annotations.forEach((a, i) => { if (t >= a.t) active = i; });
+    $$('#notes .note').forEach((n, i) => n.classList.toggle('on', i === active));
+    $$('#markers .marker').forEach((m, i) => m.classList.toggle('on', i === active));
+    $('#now-note').textContent = active >= 0 ? `· ${S.annotations[active].head}` : '';
+    if (playing && active >= 0) {
+      const el = $$('#notes .note')[active];
+      el?.scrollIntoView({ block: 'nearest', behavior: reduced ? 'auto' : 'smooth' });
+    }
+    if (t >= S.duration) stopPlayback();
+  }
+  function seekTo(sec, pause) { if (pause) stopPlayback(); setTime(sec); }
+  function stopPlayback() { playing = false; clearInterval(timer); const p = $('#play'); if (p) { p.textContent = '▶'; p.setAttribute('aria-label', 'Play recording'); } }
+  $('#play').addEventListener('click', () => {
+    if (playing) { stopPlayback(); return; }
+    playing = true;
+    $('#play').textContent = '❚❚';
+    $('#play').setAttribute('aria-label', 'Pause recording');
+    if (t >= DB.sessions[currentSession].duration) t = 0;
+    timer = setInterval(() => setTime(t + RATE * 0.25), 250);
+  });
+  $('#seek').addEventListener('input', (e) => seekTo(+e.target.value, false));
+
+  /* ------------------------------------------------------------ comments */
+  function renderComments() {
+    const S = DB.sessions[currentSession];
+    const all = [...S.comments, ...localComments[currentSession]];
+    $('#c-count').textContent = `${all.length} comments`;
+    $('#c-list').innerHTML = all.map((c) =>
+      `<div class="comment">
+        <span class="ava ${c.mine ? 'ava-maria' : 'ava-gen'}" aria-hidden="true">${c.ava}</span>
+        <div>
+          <div class="who">${c.who}<span>· ${c.role}</span>${c.mine ? '<span style="color:var(--cyan)">· you</span>' : ''}</div>
+          <p>${c.text}</p>
+          <div class="likes"><button aria-label="Like this comment">♥ ${c.likes}</button> · Reply</div>
+        </div>
+      </div>`).join('');
+  }
+  $('#c-post').addEventListener('click', postComment);
+  $('#c-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); postComment(); }
+  });
+  function postComment() {
+    const box = $('#c-input');
+    const text = box.value.trim();
+    if (!text) return;
+    // In-memory only by design — no storage, resets on refresh.
+    localComments[currentSession].push({ who: 'Maria', role: 'RN', ava: 'MS', likes: 0, mine: true, text: text.replace(/</g, '&lt;') });
+    box.value = '';
+    renderComments();
+    // TODO: real backend — comments sync to the team feed here.
+  }
+
+  /* ------------------------------------------------- constellation + count */
+  (function buildConstellation() {
+    const svg = $('#constellation svg');
+    const cx = 430, cy = 210;
+    let edges = '', nodes = '';
+    // deterministic pseudo-random so the layout is stable
+    let seed = 7;
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < 120; i++) {
+      const ang = rnd() * Math.PI * 2;
+      const dist = 105 + rnd() * 165;
+      const x = cx + Math.cos(ang) * dist * 1.55;
+      const y = cy + Math.sin(ang) * dist * 0.82;
+      if (x < 14 || x > 846 || y < 14 || y > 406) continue;
+      const lit = rnd() > 0.45;
+      if (lit) edges += `<line class="edge" x1="${cx}" y1="${cy}" x2="${x.toFixed(0)}" y2="${y.toFixed(0)}"/>`;
+      nodes += `<circle class="node ${lit ? 'lit' : ''} ${lit && !reduced ? 'pulse' : ''}" cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="${lit ? 3.2 : 2.2}" style="animation-delay:${(rnd() * 2.4).toFixed(2)}s"/>`;
+    }
+    svg.innerHTML = edges + nodes +
+      `<circle cx="${cx}" cy="${cy}" r="66" fill="none" stroke="rgba(63,217,232,.3)"/>` +
+      `<circle cx="${cx}" cy="${cy}" r="66" fill="rgba(63,217,232,.05)"/>`;
+  })();
+
+  let counted = false;
+  function animateCount() {
+    if (counted) return;
+    counted = true;
+    const el = $('#big-count'), target = 1247;
+    if (reduced) { el.textContent = target.toLocaleString(); return; }
+    const t0 = performance.now(), dur = 1600;
+    (function tick(now) {
+      const p = Math.min(1, (now - t0) / dur);
+      el.textContent = Math.round(target * (1 - Math.pow(1 - p, 3))).toLocaleString();
+      if (p < 1) requestAnimationFrame(tick);
+    })(t0);
+  }
+
+  /* ------------------------------------------------------------- Vita FAB */
+  const sheet = $('#vita-sheet'), fab = $('#vita-fab');
+  function vitaKey() { return currentView === 'session' ? `session-${currentSession}` : currentView; }
+  function vitaSay(kind) { $('#vita-msg').innerHTML = DB.vita[vitaKey()][kind]; }
+  fab.addEventListener('click', () => {
+    const open = sheet.classList.toggle('open');
+    fab.setAttribute('aria-expanded', open);
+    if (open) vitaSay('explain');
+  });
+  $('#vita-close').addEventListener('click', () => { sheet.classList.remove('open'); fab.setAttribute('aria-expanded', 'false'); });
+  $$('[data-vita]').forEach((b) => b.addEventListener('click', () => vitaSay(b.dataset.vita)));
+
+  route();
+})();
+</script>
+</body>
+</html>
